@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="ShiftNote"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#050a14"/>
+<title>ShiftNote · Epic Edition</title>
+<style>
+:root{
+  --bg:#050a14;--surf:#0b1523;--surf2:#101e30;--bd:#172438;
+  --ac:#2dd4bf;--ac2:#0c3835;--tx:#dde8f5;--mu:#3a5068;
+  --danger:#ef4444;--warn:#f59e0b;--ok:#22c55e;--red:#dc2626;
+  --f-mono:'Courier New',monospace;--f-sans:system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{background:var(--bg);min-height:100%;overscroll-behavior:none;font-family:var(--f-sans);color:var(--tx);}
+#app{max-width:480px;margin:0 auto;min-height:100vh;}
+::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px;}
+input,textarea,select{-webkit-appearance:none;appearance:none;font-family:var(--f-mono);outline:none;}
+button{cursor:pointer;font-family:var(--f-mono);}
+
+/* Animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:none;}}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.5);}50%{box-shadow:0 0 0 14px rgba(220,38,38,0);}}
+@keyframes glow{0%,100%{box-shadow:0 0 20px #2dd4bf22;}50%{box-shadow:0 0 40px #2dd4bf55;}}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+.fade-up{animation:fadeUp .2s ease both;}
+.slide-up{animation:slideUp .22s cubic-bezier(.32,0,.67,0) both;}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;}
+.rec-active{animation:recPulse 1.4s ease-in-out infinite;}
+.log-btn-glow{animation:glow 2.5s ease-in-out infinite;}
+.blink{animation:blink 1s ease-in-out infinite;}
+
+/* Layout */
+.header{background:var(--surf);border-bottom:1px solid var(--bd);padding:13px 18px 11px;position:sticky;top:0;z-index:100;padding-top:calc(13px + env(safe-area-inset-top));}
+.logo{font-family:var(--f-mono);font-size:10px;letter-spacing:.28em;color:var(--ac);text-transform:uppercase;font-weight:700;}
+.title{font-family:var(--f-mono);font-size:19px;font-weight:600;color:#edf6ff;margin-top:2px;letter-spacing:-.02em;}
+.subtitle{font-family:var(--f-mono);font-size:11px;color:var(--mu);margin-top:2px;}
+.page{padding:18px 16px;padding-bottom:calc(18px + env(safe-area-inset-bottom));}
+
+/* Forms */
+.lbl{font-family:var(--f-mono);font-size:10px;letter-spacing:.22em;color:var(--ac);text-transform:uppercase;font-weight:700;display:block;margin-bottom:5px;}
+.inp{background:#07101f;border:1px solid var(--bd);border-radius:8px;color:var(--tx);font-size:14px;padding:10px 13px;width:100%;}
+.ta{background:#07101f;border:1px solid var(--bd);border-radius:8px;color:var(--tx);font-size:14px;padding:10px 13px;width:100%;resize:vertical;line-height:1.6;}
+.sel{background:#07101f;border:1px solid var(--bd);border-radius:8px;color:var(--tx);font-size:14px;padding:10px 13px;width:100%;}
+.inp:focus,.ta:focus,.sel:focus{border-color:var(--ac);}
+.mb8{margin-bottom:8px;}.mb12{margin-bottom:12px;}.mb14{margin-bottom:14px;}.mb16{margin-bottom:16px;}.mb20{margin-bottom:20px;}.mb28{margin-bottom:28px;}
+
+/* Buttons */
+.btn{background:linear-gradient(135deg,#0d9488,#0f766e);color:#fff;border:none;border-radius:10px;padding:13px 20px;font-size:14px;font-weight:700;letter-spacing:.04em;width:100%;display:block;}
+.btn:disabled{opacity:.5;}
+.btn-sec{background:var(--surf);color:var(--mu);border:1px solid var(--bd);border-radius:8px;padding:10px 15px;font-size:13px;}
+.btn-ghost{background:transparent;color:var(--mu);border:1px solid var(--bd);border-radius:6px;padding:5px 10px;font-size:11px;}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid #3a1010;border-radius:6px;padding:3px 9px;font-size:11px;}
+.btn-row{display:flex;gap:8px;}
+
+/* Cards */
+.card{background:var(--surf);border:1px solid var(--bd);border-radius:12px;margin-bottom:10px;}
+.card-body{padding:13px 15px;}
+.surf2{background:var(--surf2);border:1px solid var(--bd);border-radius:12px;padding:14px;}
+
+/* Overlay + sheet */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;display:flex;align-items:flex-end;}
+.sheet{background:var(--surf);border:1px solid var(--bd);border-radius:20px 20px 0 0;padding:22px;width:100%;max-width:480px;margin:0 auto;max-height:94vh;overflow-y:auto;padding-bottom:calc(22px + env(safe-area-inset-bottom));}
+
+/* Tabs */
+.tabs{display:flex;border-bottom:1px solid var(--bd);background:var(--surf);}
+.tab{flex:1;padding:10px 4px;background:transparent;border:none;font-family:var(--f-mono);font-size:12px;color:var(--mu);border-bottom:2px solid transparent;display:flex;align-items:center;justify-content:center;gap:5px;transition:color .15s;}
+.tab.active{color:var(--ac);border-bottom-color:var(--ac);font-weight:700;}
+.tab-badge{background:var(--bd);border-radius:99px;padding:1px 6px;font-size:10px;color:#64748b;}
+.tab.active .tab-badge{background:#0d2a2a;color:var(--ac);}
+
+/* Timeline */
+.tl-row{display:flex;gap:10px;padding:0 16px 2px;}
+.tl-dot-col{display:flex;flex-direction:column;align-items:center;width:26px;flex-shrink:0;}
+.tl-dot{width:10px;height:10px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.tl-line{width:1px;flex:1;min-height:22px;margin-top:2px;}
+.tl-body{flex:1;padding-bottom:14px;border-bottom:1px solid rgba(23,36,56,.5);}
+.tl-meta{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px;}
+.tl-time{font-family:var(--f-mono);font-size:12px;color:var(--ac);font-weight:700;}
+.tl-pill{border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700;letter-spacing:.08em;font-family:var(--f-mono);}
+.tl-text{font-size:13px;color:#c5d8ed;line-height:1.55;}
+
+/* Patient card */
+.pt-card{background:var(--surf);border:1px solid var(--bd);border-radius:12px;margin-bottom:10px;padding:13px 15px;display:flex;gap:12px;align-items:center;}
+.pt-room-box{width:44px;height:44px;border-radius:10px;background:#091420;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:13px;font-weight:700;color:var(--ac);flex-shrink:0;}
+.pt-info{flex:1;}
+.pt-name{font-size:14px;font-weight:600;color:var(--tx);}
+.pt-dx{font-size:11px;color:var(--mu);margin-top:1px;}
+.pt-meta-row{display:flex;gap:7px;margin-top:4px;flex-wrap:wrap;align-items:center;}
+.pt-badge{font-family:var(--f-mono);font-size:10px;border-radius:99px;padding:1px 7px;}
+.pt-count{background:#091420;border:1px solid var(--bd);border-radius:99px;padding:2px 9px;font-size:11px;color:var(--ac);font-family:var(--f-mono);}
+
+/* Strip */
+.pt-strip{background:#060b14;padding:9px 16px;border-bottom:1px solid var(--bd);display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+.strip-item label{font-size:10px;color:var(--mu);display:block;}
+.strip-item span{font-size:13px;}
+
+/* Log button */
+.log-btn-wrap{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;padding:10px 14px 18px;background:linear-gradient(to top,var(--bg) 65%,transparent);z-index:50;padding-bottom:calc(18px + env(safe-area-inset-bottom));}
+.epic-chips{display:flex;gap:5px;margin-bottom:9px;overflow-x:auto;padding-bottom:2px;}
+.epic-chip{background:var(--surf);border:1px solid var(--bd);border-radius:6px;color:var(--ac);font-size:10px;padding:6px 10px;white-space:nowrap;font-family:var(--f-mono);}
+
+/* Log Now modal specifics */
+.log-voice-box{background:var(--surf2);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:12px;position:relative;transition:border-color .2s;}
+.log-voice-box.recording{border-color:var(--ac);}
+.log-ta{background:transparent;border:none;padding:0;min-height:90px;font-size:15px;line-height:1.65;width:100%;color:var(--tx);resize:none;font-family:var(--f-mono);}
+.log-ta:focus{outline:none;}
+.rec-indicator{position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;}
+.rec-dot{width:8px;height:8px;border-radius:50%;background:var(--red);}
+.mic-btn{width:100%;padding:15px;border-radius:14px;border:2px solid var(--ac);background:#0c2a28;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;}
+.mic-btn.active{border-color:var(--red);background:#2d0a0a;}
+.mic-icon{font-size:26px;}
+.mic-label{text-align:left;}
+.mic-label strong{display:block;font-size:13px;font-weight:700;color:var(--ac);}
+.mic-btn.active .mic-label strong{color:var(--red);}
+.mic-label small{font-size:10px;color:var(--mu);}
+
+/* Preview card */
+.preview-card{background:#04090f;border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px;}
+.preview-time-row{display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--bd);margin-bottom:14px;}
+.preview-time{font-family:var(--f-mono);font-size:14px;color:var(--ac);font-weight:700;}
+.preview-time-lbl{font-family:var(--f-mono);font-size:10px;color:var(--mu);}
+.room-ok{display:flex;align-items:center;gap:10px;background:#0d2a2a;border:1px solid rgba(45,212,191,.26);border-radius:10px;padding:10px 14px;}
+.room-box{width:38px;height:38px;border-radius:8px;background:var(--ac2);display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:13px;font-weight:700;color:var(--ac);flex-shrink:0;}
+.room-missing{background:#1a1008;border:1px solid rgba(245,158,11,.26);border-radius:10px;padding:12px;}
+.cat-pill-lg{border-radius:99px;padding:5px 14px;font-size:12px;font-weight:700;letter-spacing:.08em;font-family:var(--f-mono);}
+.cat-grid{display:flex;flex-wrap:wrap;gap:5px;max-height:130px;overflow-y:auto;margin-top:10px;}
+.cat-chip{border-radius:6px;padding:4px 9px;font-size:10px;font-family:var(--f-mono);border:1px solid var(--bd);}
+.entry-text-box{background:var(--surf2);border-radius:8px;padding:10px 12px;font-size:13px;color:#c5d8ed;line-height:1.6;border:1px solid var(--bd);}
+
+/* Room picker */
+.room-picker{background:var(--surf2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px;}
+.room-picker-btn{width:100%;margin-bottom:8px;text-align:left;padding:10px 14px;border-radius:8px;display:flex;gap:10px;align-items:center;background:#07101f;border:1px solid var(--bd);}
+.room-picker-btn.selected{border-color:var(--ac);color:var(--ac);}
+
+/* Brain tab */
+.brain-drop{background:var(--surf2);border:2px dashed var(--bd);border-radius:16px;padding:36px;text-align:center;}
+.brain-img-wrap{background:#030810;border-radius:12px;overflow:hidden;border:1px solid var(--bd);position:relative;max-height:56vh;}
+.zoom-btns{position:absolute;bottom:8px;right:8px;display:flex;gap:6px;}
+.zoom-btn{width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.7);border:1px solid var(--bd);color:var(--tx);font-size:18px;display:flex;align-items:center;justify-content:center;}
+
+/* Tasks tab */
+.task-row{background:var(--surf2);border:1px solid var(--bd);border-radius:10px;padding:10px 13px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;}
+.task-cb{width:20px;height:20px;border-radius:4px;border:1.5px solid;background:transparent;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;}
+.task-done{background:#060e07;border:1px solid #1a3a20;border-radius:10px;padding:9px 13px;margin-bottom:7px;display:flex;gap:10px;align-items:center;opacity:.55;}
+.task-cb-done{width:20px;height:20px;border-radius:4px;background:var(--ok);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:12px;}
+.task-text-done{flex:1;font-size:12px;color:#64748b;text-decoration:line-through;}
+
+/* Note output */
+.note-output{background:#030710;border:1px solid var(--bd);border-radius:8px;padding:15px;font-size:12px;font-family:var(--f-mono);color:#94a3b8;white-space:pre-wrap;line-height:1.75;max-height:64vh;overflow-y:auto;}
+
+/* Helpers */
+.flex{display:flex;}.gap8{gap:8px;}.gap5{gap:5px;}.ai-c{align-items:center;}.jc-sb{justify-content:space-between;}
+.w100{width:100%;}.f1{flex:1;}.f2{flex:2;}
+.mt16{margin-top:16px;}.mt10{margin-top:10px;}.mt6{margin-top:6px;}
+.empty-state{padding:44px 20px;text-align:center;}
+.empty-icon{font-size:38px;margin-bottom:10px;}
+.empty-title{color:var(--mu);font-size:14px;font-weight:600;margin-bottom:6px;}
+.empty-body{color:#1e3048;font-size:12px;line-height:1.6;}
+.divider{height:1px;background:var(--bd);margin:16px 0;}
+.install-box{background:var(--surf2);border:1px solid var(--bd);border-radius:12px;padding:15px;margin-top:22px;}
+.hint{font-size:11px;color:var(--mu);text-align:center;margin-top:12px;font-family:var(--f-mono);}
+.row-between{display:flex;justify-content:space-between;align-items:flex-start;}
+.info-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.section-lbl{font-family:var(--f-mono);font-size:10px;letter-spacing:.2em;color:var(--mu);margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════════════
+const SHIFTS=['Nights (7P–7A)','Days (7A–7P)','Evenings (3P–11P)','Custom'];
+const UNITS=['CVICU','ICU','Step-Down','Med-Surg','ED','OR/PACU','Tele','Other'];
+const CATS=[
+  {id:'assessment', label:'Assessment',            icon:'🩺',color:'#38bdf8'},
+  {id:'neuro',      label:'Neuro',                 icon:'🧠',color:'#a78bfa'},
+  {id:'cardiac',    label:'Cardiac/Hemodynamics',  icon:'❤️', color:'#f87171'},
+  {id:'resp',       label:'Respiratory',           icon:'🫁',color:'#34d399'},
+  {id:'gi_gu',      label:'GI / GU',               icon:'💧',color:'#fbbf24'},
+  {id:'medication', label:'Medication Event',      icon:'💊',color:'#fb923c'},
+  {id:'procedure',  label:'Procedure/Intervention',icon:'🔧',color:'#60a5fa'},
+  {id:'lines_tubes',label:'Lines/Tubes/Drains',    icon:'🧵',color:'#c084fc'},
+  {id:'lab',        label:'Critical Lab/Value',    icon:'🧪',color:'#f472b6'},
+  {id:'physician',  label:'Provider Notification', icon:'📞',color:'#4ade80'},
+  {id:'education',  label:'Patient/Family Educ.',  icon:'📋',color:'#67e8f9'},
+  {id:'pain',       label:'Pain / Comfort',        icon:'⚡',color:'#fde68a'},
+  {id:'fall_safety',label:'Fall / Safety',         icon:'⚠️',color:'#fca5a5'},
+  {id:'transfer',   label:'Transfer / Handoff',    icon:'🔄',color:'#86efac'},
+  {id:'other',      label:'Other',                 icon:'📝',color:'#94a3b8'},
+];
+const CMAP=Object.fromEntries(CATS.map(c=>[c.id,c]));
+const EPIC_TYPES={
+  nursing_note:'Nursing Note',
+  shift_assessment:'Shift Assessment',
+  sbar_handoff:'SBAR Handoff',
+  progress_note:'Progress Note',
+  education_note:'Education Note',
+  procedure_note:'Procedure Note',
+  transfer_note:'Transfer/Handoff Note',
+};
+const PRIOS={urgent:{color:'#f87171',label:'Urgent'},normal:{color:'#38bdf8',label:'Normal'},follow_up:{color:'#fbbf24',label:'Follow-up'}};
+
+// ═══════════════════════════════════════════════════════
+//  CLASSIFIER
+// ═══════════════════════════════════════════════════════
+const KW={
+  cardiac:['bp','blood pressure','map','mean arterial','heart rate','hr','pulse','rhythm','sinus','afib','atrial fib','tachycardia','bradycardia','svt','vt','vtach','vfib','pac','pvc','systolic','diastolic','hypertension','hypotension','ci','cardiac index','cardiac output','svr','pvr','cvp','wedge','pcwp','pa pressure','pulmonary artery','swan','hemodynamic','vasopressin','norepinephrine','dopamine','dobutamine','milrinone','epinephrine','levophed','neosynephrine','phenylephrine','drip','infusion','titrated','vasopressor','inotrope','ecg','ekg','12 lead','telemetry','arrhythmia','pacemaker','iabp','impella','lvad','ejection fraction','troponin','bnp','nt-probnp','stemi','nstemi','acs','angina','edema','jvd','murmur'],
+  resp:['spo2','o2 sat','oxygen saturation','respiratory rate','rr','breath sounds','lung','lungs','ventilator','vent','intubated','intubation','extubated','extubation','cpap','bipap','niv','nasal cannula','face mask','non-rebreather','high flow','optiflow','tidal volume','peep','fio2','pip','wheeze','crackle','rales','rhonchi','diminished','pneumonia','pneumothorax','atelectasis','effusion','cxr','bronchospasm','nebulizer','albuterol','suction','secretions','dyspnea','shortness of breath','sob','apnea','hypoxia'],
+  neuro:['gcs','glasgow','alert','oriented','confusion','confused','disoriented','lethargic','somnolent','arouses','unresponsive','posturing','pupils','perrla','perrl','anisocoria','reactive','non-reactive','sluggish','dilated','focal deficit','neuro check','extremity','movement','strength','grip','seizure','tremor','rigidity','agitation','agitated','combative','delirium','rass','richmond','sedation','level of consciousness','loc','cam-icu','stroke','tia','icp','hemiplegia','hemiparesis','aphasia'],
+  gi_gu:['urine output','uo','uop','foley','catheter','urinary','void','voided','hematuria','creatinine','bun','oliguria','anuria','dialysis','cvvh','crrt','hemodialysis','bowel','bowel sounds','abdomen','abdominal','nausea','vomiting','emesis','diarrhea','constipation','flatus','stool','ostomy','colostomy','ngt','ng tube','nasogastric','tpn','tube feeding','enteral','peg','npo','ascites','distension','distended','tender','guarding','ileus','obstruction','hepatic','jaundice','gi bleed'],
+  medication:['mg','mcg','meq','dose','administered','given','iv push','ivp','po','oral','sublingual','im','sq','subcutaneous','patch','inhaler','bolus','morphine','fentanyl','dilaudid','hydromorphone','oxycodone','propofol','midazolam','versed','lorazepam','ativan','dexmedetomidine','precedex','heparin','warfarin','enoxaparin','lovenox','insulin','glucose','dextrose','magnesium','potassium','lasix','furosemide','metoprolol','labetalol','amiodarone','adenosine','atropine','vancomycin','zosyn','piperacillin','cefepime','meropenem','antibiotic','prbc','ffp','platelets','cryoprecipitate','transfusion','blood product','held','discontinued','restarted','concentration'],
+  lab:['lab','result','critical','value','reported','called','potassium','sodium','chloride','co2','bicarb','bicarbonate','glucose','calcium','magnesium','phosphorus','hemoglobin','hgb','hematocrit','hct','wbc','platelet','plt','inr','pt','ptt','aptt','fibrinogen','d-dimer','troponin','bnp','lactate','lactic acid','ph','pco2','po2','abg','vbg','ammonia','albumin','lipase','culture','sensitivity','blood culture','urine culture','cbc','bmp','cmp','procalcitonin','crp','tsh','critical value','panic value','abnormal','elevated','decreased','stat'],
+  physician:['notified','notification','called','paged','spoke with','discussed','dr.','md','np','pa','attending','resident','fellow','hospitalist','intensivist','cardiologist','surgeon','consult','orders received','new orders','verbal order','telephone order','updated','informed','aware','bedside','responded','came to bedside','evaluated'],
+  education:['education','educated','teaching','taught','instruction','instructed','explained','discussed with patient','discussed with family','verbalized understanding','verbalized','demonstrated','return demonstration','pamphlet','handout','material','discharge teaching','discharge instructions','diet','activity restriction','medication teaching','sign and symptom','when to call','follow up'],
+  lines_tubes:['central line','cvc','central venous','picc','midline','peripheral iv','piv','arterial line','a-line','chest tube','thoracostomy','foley','urinary catheter','ngt','ng tube','peg','g-tube','drain','jp drain','jackson pratt','hemovac','wound vac','dressing','dressing change','site','insertion site','occlusive','tegaderm','biopatch','chlorhexidine','patent','flush','flushed','blood return','occlusion','occluded','kinked','clot','infiltrated','removed','replaced','discontinued','cap changed'],
+  procedure:['procedure','bedside','intubation','extubation','cardioversion','defibrillation','cpr','code','central line placement','a-line placement','thoracentesis','paracentesis','lumbar puncture','endoscopy','bronchoscopy','echocardiogram','echo','ultrasound','chest tube insertion','chest tube removal','tracheostomy','trach care','wound care','debridement','suture','staple','biopsy','aspiration','iabp','impella','lvad management','hemofiltration','dialysis session','blood transfusion'],
+  pain:['pain','pain scale','pain score','pain level','0/10','1/10','2/10','3/10','4/10','5/10','6/10','7/10','8/10','9/10','10/10','numeric','nrs','vas','flacc','cpot','analgesic','analgesia','comfort','discomfort','aching','sharp','throbbing','burning','pressure','reassessed','pain management','pain controlled','tolerable','uncontrolled','breakthrough'],
+  fall_safety:['fall','fall risk','morse fall','fall prevention','bed alarm','alarm','bed in low position','side rails','call light','non-skid','skid socks','restraint','soft restraint','mitts','wrist restraint','hold','safety','safety measures','reoriented','wandering','near fall','assisted to bed','ambulation assist','transfer assist','gait belt','sitter','1-to-1','constant observation','elopement'],
+  transfer:['transfer','transferred','transported','report given','handoff','sbar','sign-out','signed out','receiving nurse','accepting physician','accepting md','step down','step-down','icu to floor','floor to icu','step up','discharge','discharged','home','snf','skilled nursing','rehab','acute rehab','pacu','bed assignment'],
+  assessment:['assessment','assessed','full assessment','head to toe','head-to-toe','shift assessment','vital signs','vitals','temperature','temp','warm','cool','skin','capillary refill','mucous membranes','general appearance','nad','no acute distress','comfortable','resting comfortably','awake','sleeping','resting'],
+};
+function classify(raw){
+  const text=raw.toLowerCase();
+  const scores={};
+  CATS.forEach(cat=>{
+    let s=0;
+    (KW[cat.id]||[]).forEach(kw=>{
+      if(kw.includes(' ')){if(text.includes(kw))s+=3;}
+      else{try{if(new RegExp('\\b'+kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(text))s+=2;}catch(e){}}
+    });
+    if(s)scores[cat.id]=s;
+  });
+  if(/\b(dr\.?|md|np|pa|physician|attending|resident)\b/i.test(text)&&/\b(notif|called|paged|spoke|discuss|inform|update|aware)\b/i.test(text))scores.physician=(scores.physician||0)+10;
+  if(/\b(critical|panic|result|reported|called to)\b/i.test(text)&&/\b(potassium|sodium|glucose|hemoglobin|hgb|inr|troponin|lactate|ph|pco2|wbc|platelet|creatinine|calcium|magnesium|bun)\b/i.test(text))scores.lab=(scores.lab||0)+8;
+  if(/\d+\s*(mg|mcg|meq|units?|mL|g\b)/i.test(text))scores.medication=(scores.medication||0)+6;
+  if(/\d+\s*\/\s*10/i.test(text)||/pain\s+(score|level|rated|scale)/i.test(text))scores.pain=(scores.pain||0)+8;
+  if(/\d{2,3}\s*\/\s*\d{2,3}/.test(text))scores.cardiac=(scores.cardiac||0)+6;
+  if(/\d{2,3}\s*%/.test(text)&&/\b(spo2|o2|sat|oxygen)\b/i.test(text))scores.resp=(scores.resp||0)+6;
+  if(/\d+\s*m[lL]/i.test(text)&&/\b(urine|uo|foley|output)\b/i.test(text))scores.gi_gu=(scores.gi_gu||0)+7;
+  if(/\b(step.?down|transferred to|report given|handoff|discharge)\b/i.test(text))scores.transfer=(scores.transfer||0)+8;
+  if(/verbali[sz]ed understanding/i.test(text))scores.education=(scores.education||0)+15;
+  if(/\b(central line|picc|a.?line|arterial line|chest tube|drain|dressing change)\b/i.test(text))scores.lines_tubes=(scores.lines_tubes||0)+8;
+  if(!Object.keys(scores).length)return'other';
+  return Object.entries(scores).sort((a,b)=>b[1]-a[1])[0][0];
+}
+function polish(raw){
+  let t=raw.trim();
+  if(!t)return t;
+  t=t.charAt(0).toUpperCase()+t.slice(1);
+  if(!/[.!?]$/.test(t))t+='.';
+  [[/\bbp\b/gi,'blood pressure'],[/\bhr\b/gi,'heart rate'],[/\brr\b/gi,'respiratory rate'],[/\bspo2\b/gi,'SpO2'],[/\buo\b/gi,'urine output'],[/\buop\b/gi,'urine output per hour'],[/\btemp\b/gi,'temperature'],[/\bvs\b/gi,'vital signs'],[/\bpts?\b/gi,'patient'],[/\bw\/\b/gi,'with'],[/\bs\/p\b/gi,'status post'],[/\bc\/o\b/gi,'complains of'],[/\bnpo\b/gi,'NPO'],[/\bmd\b/gi,'MD'],[/\bnp\b/gi,'NP'],[/\bpiv\b/gi,'peripheral IV'],[/\bcvc\b/gi,'central venous catheter'],[/\ba-line\b/gi,'arterial line'],[/\bprbc\b/gi,'packed red blood cells'],[/\bffp\b/gi,'fresh frozen plasma'],[/\bn\/v\b/gi,'nausea and vomiting']].forEach(([re,rep])=>{t=t.replace(re,rep);});
+  return t;
+}
+function extractRoom(text){
+  const pats=[/\b(?:room|rm\.?)\s*([A-Za-z]?\d+[A-Za-z]?)\b/i,/\bbed\s*([A-Za-z]?\d+[A-Za-z]?)\b/i,/\bpatient\s+in\s+(?:room\s+)?([A-Za-z]?\d+[A-Za-z]?)\b/i,/\bfor\s+(?:room\s+)?([A-Za-z]?\d+[A-Za-z]?)\b/i,/^([A-Za-z]?\d+[A-Za-z]?)[,:\s]/];
+  for(const re of pats){const m=text.match(re);if(m)return m[1].toUpperCase();}
+  return null;
+}
+function stripRoom(text){
+  return text.replace(/\b(?:room|rm\.?)\s*[A-Za-z]?\d+[A-Za-z]?\b[,:\s]*/gi,'').replace(/\bbed\s*[A-Za-z]?\d+[A-Za-z]?\b[,:\s]*/gi,'').replace(/\bfor\s+(?:room\s+)?[A-Za-z]?\d+[A-Za-z]?\b[,:\s]*/gi,'').replace(/\bpatient\s+in\s+(?:room\s+)?[A-Za-z]?\d+[A-Za-z]?\b[,:\s]*/gi,'').replace(/^[A-Za-z]?\d+[A-Za-z]?[,:\s]+/,'').trim();
+}
+
+// ═══════════════════════════════════════════════════════
+//  FORMATTERS & NOTE GEN
+// ═══════════════════════════════════════════════════════
+const fmt=iso=>iso?new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:true}):'';
+const fmtDate=iso=>iso?new Date(iso).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}):'';
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function generateNote(patient,noteType,nurse){
+  const sorted=[...patient.entries].sort((a,b)=>new Date(a.time)-new Date(b.time));
+  const pending=patient.tasks.filter(t=>!t.done);
+  const line='─'.repeat(60);
+  const hdr=[noteType.toUpperCase(),`Patient: ${patient.name||'Unnamed'}  |  Room: ${patient.room||'—'}  |  MRN: ${patient.mrn||'—'}`,`Dx: ${patient.dx||'—'}`,`Date: ${fmtDate(new Date().toISOString())}  |  Shift: ${nurse.shift}  |  Unit: ${nurse.unit}`,`Author: ${nurse.name||'RN'}`,line,''].join('\n');
+  if(noteType==='SBAR Handoff'){
+    const events=sorted.map(e=>`  ${fmt(e.time)} — [${(CMAP[e.category]?.label||e.category).toUpperCase()}] ${e.text}`).join('\n')||'  No events documented.';
+    const tasks=pending.length?pending.map(t=>`  □ ${t.text}`).join('\n'):'  No pending items.';
+    return hdr+['[S — SITUATION]','  Patient: '+(patient.name||'Unnamed')+', Rm '+(patient.room||'—')+', MRN: '+(patient.mrn||'—'),'  Dx: '+(patient.dx||'—'),'  Current concern: ___','','[B — BACKGROUND]','  Shift events:',events,'','[A — ASSESSMENT]','  Hemodynamics/VS: ___','  Neuro: ___','  Respiratory: ___','  Lines/drips: ___','','[R — RECOMMENDATION / PENDING]',tasks,'',line,`Signed off: ${new Date().toLocaleString()}  |  ${nurse.name||'RN'}  |  ${nurse.unit}`].join('\n');
+  }
+  if(!sorted.length)return hdr+'No shift entries documented.';
+  const grouped={};
+  sorted.forEach(e=>{(grouped[e.category]=grouped[e.category]||[]).push(e);});
+  let body='';
+  Object.keys(grouped).forEach(cid=>{
+    body+=`[${(CMAP[cid]?.label||cid).toUpperCase()}]\n`;
+    grouped[cid].forEach(e=>{body+=`  ${fmt(e.time)} — ${e.text}\n`;});
+    body+='\n';
+  });
+  if(pending.length){body+='[PENDING / FOLLOW-UP]\n';pending.forEach(t=>{body+=`  □ ${t.text}\n`;});body+='\n';}
+  return hdr+body+[line,`Documented: ${new Date().toLocaleString()}`,`Author: ${nurse.name||'RN'}  |  ${nurse.unit}`,'Paste into Epic → Notes → New → Nursing Documentation'].join('\n');
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+function loadState(){
+  try{
+    const s=JSON.parse(localStorage.getItem('sn_state')||'null');
+    if(s&&s.pts)return s;
+  }catch(e){}
+  return null;
+}
+function saveState(){
+  try{
+    const{screen,nurse,pts,activeId,tab}=APP;
+    localStorage.setItem('sn_state',JSON.stringify({nurse,pts,activeId,tab,screen:screen==='note'?'chart':screen}));
+  }catch(e){}
+}
+
+const saved=loadState();
+const APP={
+  screen: saved?saved.screen:'setup',
+  nurse:  saved?saved.nurse:{name:'',shift:SHIFTS[0],unit:UNITS[0]},
+  pts:    saved?saved.pts:[],
+  activeId: saved?saved.activeId:null,
+  tab:    saved?saved.tab:'timeline',
+  noteOut:'',
+  // Log Now modal state
+  logOpen:false, logText:'', logInterim:'', logTime:'', logCapTime:null,
+  logResult:null, logOverrideCat:null, logOverrideRoom:null,
+  logShowCat:false, logShowRoom:false, logRec:false,
+  // Misc
+  noteModalPid:null, noteModalType:'nursing_note',
+  brainScale:{}, brainPos:{},
+  // Form state
+  newPtRoom:'', newPtName:'', newPtMrn:'', newPtDx:'', addingPt:false,
+  search:'',
+  taskText:'', taskPrio:'normal',
+  editTime:false,
+};
+
+// ═══════════════════════════════════════════════════════
+//  VOICE RECOGNITION ENGINE  (iOS Safari + Android Chrome)
+//
+//  Root cause of iOS failure:
+//    1. continuous:true is broken on iOS — use false + restart
+//    2. Calling render() inside onresult destroys the DOM and
+//       kills the active session — update textarea directly instead
+//    3. no-speech / aborted errors are normal pauses, not failures
+// ═══════════════════════════════════════════════════════
+const REC = {
+  _inst: null,
+  _going: false,
+  _accum: '',
+
+  get supported() {
+    return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  },
+
+  start() {
+    if (!this.supported) {
+      alert(
+        'Voice-to-text is not available in this browser.\n\n' +
+        '✅ Works in: Safari on iPhone/iPad (iOS 14.5+), Chrome on Android\n' +
+        '❌ Does not work in: Chrome/Firefox/Edge on iOS\n\n' +
+        'Tip: You can also use your keyboard\u2019s \uD83C\uDF99 microphone key to dictate into the text box.'
+      );
+      return;
+    }
+    this._going = true;
+    this._accum = APP.logText || '';
+    APP.logRec = true;
+    this._updateUI(true);
+    this._spawn();
+  },
+
+  _spawn() {
+    if (!this._going) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const inst = new SR();
+    this._inst = inst;
+    inst.lang = 'en-US';
+    inst.continuous = false;
+    inst.interimResults = true;
+    inst.maxAlternatives = 1;
+
+    inst.onresult = (e) => {
+      if (inst !== this._inst) return;
+      let finalChunk = '', interimChunk = '';
+      Array.from(e.results).forEach(r => {
+        if (r.isFinal) finalChunk += r[0].transcript + ' ';
+        else interimChunk += r[0].transcript;
+      });
+      if (finalChunk) {
+        this._accum = (this._accum + ' ' + finalChunk).trim();
+        APP.logText = this._accum;
+      }
+      APP.logInterim = interimChunk;
+      // Update textarea DIRECTLY — never call render() here
+      const ta = document.getElementById('log-ta');
+      if (ta) {
+        ta.value = this._accum + (interimChunk ? ' ' + interimChunk + '\u2026' : '');
+        ta.scrollTop = ta.scrollHeight;
+      }
+      const btn = document.getElementById('log-process');
+      if (btn && this._accum.trim()) btn.disabled = false;
+    };
+
+    inst.onend = () => {
+      if (inst !== this._inst) return;
+      if (this._going) {
+        setTimeout(() => this._spawn(), 120);
+      } else {
+        APP.logRec = false;
+        APP.logInterim = '';
+        this._updateUI(false);
+      }
+    };
+
+    inst.onerror = (e) => {
+      if (inst !== this._inst) return;
+      if (['no-speech','aborted','audio-capture'].includes(e.error)) {
+        if (this._going) setTimeout(() => this._spawn(), 120);
+        return;
+      }
+      if (e.error === 'not-allowed') {
+        alert('Microphone access was denied.\n\nGo to Settings > Safari > Microphone and allow access, then try again.');
+        this.stop(); return;
+      }
+      if (e.error === 'network') {
+        alert('Voice recognition needs a network connection on this device.\n\nTip: Use your keyboard\u2019s \uD83C\uDF99 mic key to dictate offline.');
+        this.stop(); return;
+      }
+      if (this._going) setTimeout(() => this._spawn(), 300);
+    };
+
+    try { inst.start(); }
+    catch(err) { if (this._going) setTimeout(() => this._spawn(), 250); }
+  },
+
+  stop() {
+    this._going = false;
+    if (APP.logInterim && APP.logInterim.trim()) {
+      this._accum = (this._accum + ' ' + APP.logInterim).trim();
+      APP.logText = this._accum;
+      APP.logInterim = '';
+    }
+    if (this._inst) {
+      try { this._inst.stop(); } catch(e) {}
+      this._inst = null;
+    }
+    APP.logRec = false;
+    render();
+  },
+
+  _updateUI(on) {
+    const btn  = document.getElementById('mic-toggle');
+    const dot  = document.getElementById('rec-live-dot');
+    const stat = document.getElementById('rec-live-status');
+    const box  = document.getElementById('log-voice-box');
+    const icon = document.getElementById('mic-icon');
+    const lbl  = document.getElementById('mic-label-main');
+    const sub  = document.getElementById('mic-label-sub');
+    if (btn)  btn.classList.toggle('active', on);
+    if (dot)  dot.style.display  = on ? 'flex' : 'none';
+    if (stat) stat.style.display = on ? 'flex' : 'none';
+    if (box)  box.classList.toggle('recording', on);
+    if (icon) icon.textContent = on ? '\u2B1B' : '\uD83C\uDF99';
+    if (lbl)  lbl.textContent  = on ? 'Tap to Stop' : 'Tap to Speak';
+    if (sub)  sub.textContent  = on ? 'Recording in progress\u2026' : 'Mic off \u2014 tap to start';
+  },
+};
+
+function pt(){return APP.pts.find(p=>p.id===APP.activeId)||null;}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER ENGINE
+// ═══════════════════════════════════════════════════════
+function render(){
+  document.getElementById('app').innerHTML=buildApp();
+  attachEvents();
+  saveState();
+}
+
+function buildApp(){
+  if(APP.screen==='setup')return buildSetup();
+  if(APP.screen==='note')return buildNote();
+  return buildMain();
+}
+
+// ──── SETUP ────
+function buildSetup(){
+  return`<div class="header">
+    <div class="logo">ShiftNote · Epic Edition</div>
+    <div class="title">Shift Setup</div>
+    <div class="subtitle">Configure before clocking in</div>
+  </div>
+  <div class="page">
+    <label class="lbl">Your Name (RN)</label>
+    <input class="inp mb14" id="s-name" placeholder="e.g. J. Cruz, BSN RN" value="${esc(APP.nurse.name)}"/>
+    <label class="lbl">Shift</label>
+    <select class="sel mb14" id="s-shift">${SHIFTS.map(s=>`<option${s===APP.nurse.shift?' selected':''}>${esc(s)}</option>`).join('')}</select>
+    <label class="lbl">Unit</label>
+    <select class="sel mb28" id="s-unit">${UNITS.map(u=>`<option${u===APP.nurse.unit?' selected':''}>${esc(u)}</option>`).join('')}</select>
+    <button class="btn" id="s-start">START SHIFT →</button>
+    <div class="install-box">
+      <div class="lbl mb8">📱 Add to Home Screen — Works 100% Offline</div>
+      <p style="font-size:12px;color:var(--mu);line-height:1.7">
+        <strong style="color:#8faac4">iOS Safari:</strong> Tap Share → "Add to Home Screen"<br>
+        <strong style="color:#8faac4">Android Chrome:</strong> Tap ⋮ → "Add to Home Screen"<br>
+        <strong style="color:#8faac4">No internet needed</strong> after saving the file. No login. No account. No Cloud.
+      </p>
+    </div>
+    <p class="hint">Session data auto-saved locally · Nothing transmitted · HIPAA-safe</p>
+  </div>`;
+}
+
+// ──── NOTE OUTPUT ────
+function buildNote(){
+  return`<div class="header">
+    <div class="logo">ShiftNote · Epic Edition</div>
+    <div class="title">Epic Note Ready</div>
+    <div class="subtitle">Copy → Paste into Epic</div>
+  </div>
+  <div class="page">
+    <div class="btn-row mb14">
+      <button class="btn-sec f1" id="note-back">← Back</button>
+      <button class="btn f2" id="note-copy">📋 COPY FOR EPIC</button>
+    </div>
+    <div class="note-output">${esc(APP.noteOut)}</div>
+    <p class="hint" style="margin-top:12px">Epic → Navigator → Notes → New → Nursing Documentation</p>
+  </div>`;
+}
+
+// ──── MAIN ────
+function buildMain(){
+  const p=pt();
+  return`
+    ${buildHeader(p)}
+    ${!p?buildBoard():buildPatient(p)}
+    ${buildLogModal()}
+    ${buildNoteModal()}
+  `;
+}
+
+function buildHeader(p){
+  return`<div class="header">
+    <div class="row-between ai-c">
+      <div>
+        <div class="logo">ShiftNote · Epic Edition</div>
+        <div class="title">${p?`Room ${esc(p.room)}`:'Patient Board'}</div>
+        <div class="subtitle">${esc(APP.nurse.name)} · ${esc(APP.nurse.unit)} · ${esc(APP.nurse.shift)}</div>
+      </div>
+      ${p?`<button class="btn-sec" id="back-board" style="padding:8px 13px;font-size:12px">← Board</button>`:''}
+    </div>
+  </div>`;
+}
+
+// ──── BOARD ────
+function buildBoard(){
+  const filtered=APP.pts.filter(p=>[p.name,p.room,p.mrn].some(v=>v.toLowerCase().includes(APP.search.toLowerCase())));
+  return`<div class="page" style="padding-bottom:20px">
+    <button class="btn log-btn-glow mb16" id="board-log-now" style="font-size:17px;padding:18px 20px;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 0 30px var(--ac2),0 4px 24px rgba(0,0,0,.4)">
+      <span style="font-size:26px">🎙</span>
+      <div style="text-align:left">
+        <div style="font-size:16px;font-weight:700;letter-spacing:.02em">LOG NOW</div>
+        <div style="font-size:11px;opacity:.7;font-weight:400;margin-top:1px">Speak · Auto-timestamps · Auto-routes</div>
+      </div>
+    </button>
+    ${APP.pts.length>0?`<input class="inp mb14" id="board-search" placeholder="Search room · name · MRN…" value="${esc(APP.search)}"/>`:''}
+    ${APP.pts.length>0?'<div class="section-lbl">PATIENT BOARD</div>':''}
+    ${filtered.map(p=>buildPtCard(p)).join('')}
+    ${buildAddPt()}
+    <div class="divider"></div>
+    <button class="btn-sec w100" id="go-setup" style="color:#2a3e55;font-size:12px">⚙ Edit Shift Info</button>
+  </div>`;
+}
+
+function buildPtCard(p){
+  const entries=[...p.entries].sort((a,b)=>new Date(b.time)-new Date(a.time));
+  const last=entries[0];
+  const lcat=last?CMAP[last.category]:null;
+  const ptask=p.tasks.filter(t=>!t.done).length;
+  return`<div class="pt-card" data-ptid="${p.id}" id="ptcard-${p.id}">
+    <div class="pt-room-box">${esc(p.room||'?')}</div>
+    <div class="pt-info">
+      <div class="pt-name">${esc(p.name)||'<span style="color:var(--mu);font-style:italic">No name</span>'}</div>
+      <div class="pt-dx">${esc(p.dx)}</div>
+      <div class="pt-meta-row">
+        ${last?`<span style="font-size:11px;color:var(--mu);display:flex;align-items:center;gap:3px"><span style="color:${lcat?.color}">●</span>${fmt(last.time)} · ${esc(lcat?.label)}</span>`:''}
+        ${ptask>0?`<span class="pt-badge" style="background:#2a1800;border:1px solid rgba(245,158,11,.3);color:var(--warn)">${ptask} pending</span>`:''}
+        ${p.brainImg?`<span class="pt-badge" style="background:#0c2a2a;border:1px solid rgba(45,212,191,.25);color:var(--ac)">🧠 brain</span>`:''}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <span class="pt-count">${p.entries.length}</span>
+      <span style="color:var(--mu);font-size:18px">›</span>
+    </div>
+  </div>`;
+}
+
+function buildAddPt(){
+  if(!APP.addingPt)return`<button class="btn-sec w100 mb10" id="add-pt-btn" style="border:1px dashed var(--bd);border-radius:12px;padding:14px;font-size:13px;color:var(--ac);display:flex;align-items:center;justify-content:center;gap:8px">＋ Add Patient</button>`;
+  return`<div class="card mb10"><div class="card-body">
+    <div class="lbl">New Patient</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div><div class="lbl" style="margin-bottom:4px">Room *</div><input class="inp" id="np-room" placeholder="101A" value="${esc(APP.newPtRoom)}"/></div>
+      <div><div class="lbl" style="margin-bottom:4px">MRN</div><input class="inp" id="np-mrn" placeholder="Optional" value="${esc(APP.newPtMrn)}"/></div>
+    </div>
+    <div class="lbl" style="margin-bottom:4px">Name</div>
+    <input class="inp mb8" id="np-name" placeholder="Last, First" value="${esc(APP.newPtName)}"/>
+    <div class="lbl" style="margin-bottom:4px">Dx / Chief Complaint</div>
+    <input class="inp mb14" id="np-dx" placeholder="e.g. Post-CABG day 1, STEMI" value="${esc(APP.newPtDx)}"/>
+    <div class="btn-row">
+      <button class="btn-sec f1" id="add-pt-cancel">Cancel</button>
+      <button class="btn f2" id="add-pt-save">Add Patient</button>
+    </div>
+  </div></div>`;
+}
+
+// ──── PATIENT DETAIL ────
+function buildPatient(p){
+  const timeline=[...p.entries].sort((a,b)=>new Date(a.time)-new Date(b.time));
+  const pendingCount=p.tasks.filter(t=>!t.done).length;
+  const bImgId=`bimg-${p.id}`;
+  const scale=APP.brainScale[p.id]||1;
+  return`
+    <div class="pt-strip">
+      <div class="strip-item"><label>Patient</label><span>${esc(p.name||'—')}</span></div>
+      <div class="strip-item"><label>MRN</label><span style="font-family:var(--f-mono)">${esc(p.mrn||'—')}</span></div>
+      <div class="strip-item" style="flex:1"><label>Dx</label><span style="font-size:12px;color:#94a3b8">${esc(p.dx||'—')}</span></div>
+      <button class="btn-danger" id="remove-pt">✕</button>
+    </div>
+    <div class="tabs">
+      ${[{id:'timeline',label:'Timeline',badge:timeline.length},{id:'brain',label:'🧠 Brain',badge:p.brainImg?'📷':null},{id:'tasks',label:'Tasks',badge:pendingCount||null}].map(t=>`
+        <button class="tab${APP.tab===t.id?' active':''}" data-tab="${t.id}">
+          ${t.label}${t.badge!==null&&t.badge!==undefined?`<span class="tab-badge">${t.badge}</span>`:''}
+        </button>`).join('')}
+    </div>
+    ${APP.tab==='timeline'?buildTimeline(p,timeline):''}
+    ${APP.tab==='brain'?buildBrain(p,bImgId,scale):''}
+    ${APP.tab==='tasks'?buildTasks(p):''}
+    ${APP.tab==='timeline'?buildPatientBottomBar(p):''}
+  `;
+}
+
+function buildTimeline(p,timeline){
+  if(!timeline.length)return`<div class="empty-state">
+    <div class="empty-icon">🎙</div>
+    <div class="empty-title">No entries yet</div>
+    <div class="empty-body">Tap <strong style="color:var(--ac)">LOG NOW</strong> below and say "Room ${esc(p.room)}…"<br>or just dictate and it auto-routes here.</div>
+  </div>`;
+  return`<div style="padding-top:16px">
+    <div class="flex ai-c gap8" style="padding:0 16px 12px">
+      <span style="font-family:var(--f-mono);font-size:10px;color:var(--mu);letter-spacing:.2em">SHIFT TIMELINE · ${timeline.length} ENTR${timeline.length===1?'Y':'IES'}</span>
+      <div style="flex:1;height:1px;background:var(--bd)"></div>
+    </div>
+    ${timeline.map(e=>buildEntry(p.id,e)).join('')}
+    <div style="height:140px"></div>
+  </div>`;
+}
+
+function buildEntry(pid,e){
+  const cat=CMAP[e.category]||CMAP['other'];
+  return`<div class="tl-row fade-up">
+    <div class="tl-dot-col">
+      <div class="tl-dot" style="background:${cat.color};box-shadow:0 0 7px ${cat.color}77"></div>
+      <div class="tl-line" style="background:${cat.color}22"></div>
+    </div>
+    <div class="tl-body">
+      <div class="tl-meta">
+        <div class="info-row">
+          <span class="tl-time">${fmt(e.time)}</span>
+          <span class="tl-pill" style="background:${cat.color}16;border:1px solid ${cat.color}40;color:${cat.color}">${cat.icon} ${cat.label.toUpperCase()}</span>
+        </div>
+        <button class="btn-danger" data-del="${e.id}" data-pid="${pid}">✕</button>
+      </div>
+      <div class="tl-text">${esc(e.text)}</div>
+    </div>
+  </div>`;
+}
+
+function buildBrain(p,bImgId,scale){
+  if(!p.brainImg)return`<div class="page">
+    <div class="brain-drop">
+      <div style="font-size:42px;margin-bottom:10px">🧠</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px;color:var(--tx)">Capture Epic Brain</div>
+      <p style="font-size:12px;color:var(--mu);line-height:1.7;margin-bottom:20px">Photograph your Epic Brain screen or paper brain sheet as a quick-reference alongside your shift log.</p>
+      <button class="btn mb8" id="brain-cam">📷 Open Camera</button>
+      <button class="btn-sec w100" style="font-size:12px" id="brain-lib">📁 Photo Library</button>
+      <input type="file" id="brain-file-cam" accept="image/*" capture="environment" style="display:none"/>
+      <input type="file" id="brain-file-lib" accept="image/*" style="display:none"/>
+      <p style="font-family:var(--f-mono);font-size:10px;color:var(--mu);margin-top:14px;letter-spacing:.1em">IMAGE STAYS ON-DEVICE · NEVER UPLOADED</p>
+    </div>
+  </div>`;
+  return`<div class="page">
+    <div class="flex ai-c gap8 mb10">
+      <span class="lbl" style="margin-bottom:0;flex:1">Epic Brain Reference</span>
+      <button class="btn-ghost" style="font-size:10px;color:var(--ac)" id="brain-reset">Reset</button>
+      <button class="btn-ghost" style="font-size:10px;color:var(--warn)" id="brain-recam">📷 Recapture</button>
+      <button class="btn-ghost" style="font-size:10px;color:var(--danger)" id="brain-clear">✕</button>
+    </div>
+    <input type="file" id="brain-file-cam" accept="image/*" capture="environment" style="display:none"/>
+    <input type="file" id="brain-file-lib" accept="image/*" style="display:none"/>
+    <div class="brain-img-wrap" id="brain-wrap">
+      <img src="${p.brainImg}" id="brain-img" alt="Epic Brain" style="width:100%;display:block;transform-origin:top left;transform:scale(${scale});user-select:none;-webkit-user-drag:none"/>
+      <div class="zoom-btns">
+        <button class="zoom-btn" id="brain-zoomin">+</button>
+        <button class="zoom-btn" id="brain-zoomout">−</button>
+      </div>
+    </div>
+    <p style="font-family:var(--f-mono);font-size:10px;color:var(--mu);text-align:center;margin-top:6px">TAP +/− TO ZOOM</p>
+  </div>`;
+}
+
+function buildTasks(p){
+  const pending=p.tasks.filter(t=>!t.done);
+  const done=p.tasks.filter(t=>t.done);
+  return`<div class="page" style="padding-bottom:80px">
+    <div class="surf2 mb16">
+      <div class="lbl">Add Task / Reminder</div>
+      <textarea class="ta mb8" id="task-input" placeholder="e.g. Follow up AM labs · Recheck K+ · Wound care at 0200" rows="2" style="min-height:52px">${esc(APP.taskText)}</textarea>
+      <div class="flex gap8 ai-c">
+        <div class="flex gap5" style="flex:1">
+          ${Object.entries(PRIOS).map(([k,v])=>`<button class="btn-ghost" data-prio="${k}" style="font-size:10px;${APP.taskPrio===k?`background:${v.color}22;border-color:${v.color};color:${v.color}`:''}">${v.label}</button>`).join('')}
+        </div>
+        <button class="btn" id="task-add" style="flex:none;padding:9px 16px;font-size:12px">＋</button>
+      </div>
+    </div>
+    ${pending.length?`<div class="section-lbl">PENDING (${pending.length})</div>${pending.map(t=>buildTaskRow(p.id,t,false)).join('')}`:``}
+    ${done.length?`<div class="section-lbl" style="margin-top:16px;color:var(--ok)">COMPLETED (${done.length})</div>${done.map(t=>buildTaskRow(p.id,t,true)).join('')}`:''}
+    ${!p.tasks.length?`<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No tasks yet</div></div>`:''}
+  </div>`;
+}
+
+function buildTaskRow(pid,t,done){
+  const pr=PRIOS[t.prio]||PRIOS.normal;
+  if(done)return`<div class="task-done">
+    <div class="task-cb-done" data-toggle="${t.id}" data-pid="${pid}" style="cursor:pointer">✓</div>
+    <div class="task-text-done">${esc(t.text)}</div>
+    <button class="btn-danger" data-deltask="${t.id}" data-pid="${pid}">✕</button>
+  </div>`;
+  return`<div class="task-row fade-up">
+    <div class="task-cb" data-toggle="${t.id}" data-pid="${pid}" style="border-color:${pr.color};cursor:pointer"></div>
+    <div style="flex:1">
+      <div style="font-size:13px;color:var(--tx);line-height:1.5">${esc(t.text)}</div>
+      <div style="font-size:10px;color:${pr.color};margin-top:2px;font-family:var(--f-mono)">${pr.label.toUpperCase()}</div>
+    </div>
+    <button class="btn-danger" data-deltask="${t.id}" data-pid="${pid}">✕</button>
+  </div>`;
+}
+
+function buildPatientBottomBar(p){
+  return`<div class="log-btn-wrap">
+    <div class="epic-chips" id="epic-chips">
+      ${Object.entries(EPIC_TYPES).map(([k,v])=>`<button class="epic-chip" data-notetype="${k}">📄 ${v}</button>`).join('')}
+    </div>
+    <button class="btn log-btn-glow" id="pt-log-now" style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;padding:15px;border-radius:14px;box-shadow:0 0 24px var(--ac2)">
+      <span style="font-size:22px">🎙</span> LOG NOW · Room ${esc(p.room)}
+    </button>
+  </div>`;
+}
+
+// ──── LOG NOW MODAL ────
+function buildLogModal(){
+  if(!APP.logOpen)return'';
+  const p=pt();
+  const capTime=APP.logCapTime?new Date(APP.logCapTime):new Date();
+  const dTime=capTime.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:true});
+  if(APP.logResult){return buildLogPreview(dTime);}
+  const voiceBox=`<div class="log-voice-box${APP.logRec?' recording':''}" id="log-voice-box">
+    <textarea class="log-ta" id="log-ta" placeholder="Speak or type…&#10;&#10;&quot;Room 12, K+ 3.1 critical, Dr. Cruz notified at 0320, 40 meq KCl running&quot;&#10;&quot;5B vasopressin up to 0.06, MAP trending up&quot;">${esc(APP.logText)}${APP.logInterim?(' '+APP.logInterim+'…'):''}</textarea>
+    <div id="rec-live-dot" class="rec-indicator" style="display:${APP.logRec?'flex':'none'}"><div class="rec-dot blink"></div><span style="font-family:var(--f-mono);font-size:10px;color:var(--red);letter-spacing:.12em">LIVE</span></div>
+  </div>`;
+  return`<div class="overlay" id="log-overlay">
+    <div class="sheet slide-up">
+      <div class="row-between mb16">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:#edf6ff">Log Now</div>
+          <div class="flex ai-c gap8 mt6">
+            <span style="font-family:var(--f-mono);font-size:13px;color:var(--ac);font-weight:700">${dTime}</span>
+            <span style="font-family:var(--f-mono);font-size:10px;color:var(--mu)">AUTO-TIMESTAMPED</span>
+            <button class="btn-ghost" style="padding:2px 8px;font-size:10px" id="toggle-edit-time">${APP.editTime?'Done':'Edit'}</button>
+          </div>
+          ${APP.editTime?`<input type="time" class="inp" id="log-time-inp" style="width:auto;margin-top:6px;font-size:12px;padding:6px 10px" value="${APP.logTime}"/>`:''}
+        </div>
+        <button class="btn-ghost" id="log-close" style="font-size:16px;padding:4px 10px">✕</button>
+      </div>
+      ${voiceBox}
+      <div id="rec-live-status" style="font-size:11px;color:var(--red);margin-bottom:10px;display:${APP.logRec?'flex':'none'};gap:6px;align-items:center;font-family:var(--f-mono)"><div class="rec-dot blink"></div> LISTENING — tap ⬛ to stop</div>
+      <button class="mic-btn${APP.logRec?' active':''}" id="mic-toggle">
+        <span class="mic-icon" id="mic-icon">${APP.logRec?'⬛':'🎙'}</span>
+        <div class="mic-label">
+          <strong id="mic-label-main">${APP.logRec?'Tap to Stop':'Tap to Speak'}</strong>
+          <small id="mic-label-sub">${APP.logRec?'Recording in progress…':'Mic off — tap to start'}</small>
+        </div>
+      </button>
+      <button class="btn mb12" id="log-process" ${!APP.logText.trim()?'disabled':''} style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;padding:15px;border-radius:14px">
+        <span style="font-size:18px">✦</span> Process &amp; Classify
+      </button>
+      <p style="font-size:11px;color:var(--mu);text-align:center;font-family:var(--f-mono)">Include room in speech · "Room 5…" · "Rm 12…" · "Bed 7…"<br><span style="color:#2a3e55">Or use your keyboard's 🎙 mic key to dictate</span></p>
+    </div>
+  </div>`;
+}
+
+function buildLogPreview(dTime){
+  const r=APP.logResult;
+  const finalCat=APP.logOverrideCat||r.category;
+  const fc=CMAP[finalCat]||CMAP['other'];
+  const finalPt=APP.logOverrideRoom?APP.pts.find(p=>p.id===APP.logOverrideRoom):(r.patientId?APP.pts.find(p=>p.id===r.patientId):null);
+  return`<div class="overlay" id="log-overlay">
+    <div class="sheet slide-up">
+      <div class="row-between mb16">
+        <div style="font-size:18px;font-weight:700;color:#edf6ff">Confirm Entry</div>
+        <button class="btn-ghost" id="log-close" style="font-size:16px;padding:4px 10px">✕</button>
+      </div>
+      <div class="preview-card">
+        <div class="preview-time-row">
+          <span class="preview-time">${dTime}</span>
+          <span class="preview-time-lbl">TIMESTAMPED ENTRY</span>
+        </div>
+        <!-- Room -->
+        <div class="lbl mb8">Room Assignment</div>
+        ${finalPt?`<div class="room-ok mb14">
+          <div class="room-box">${esc(finalPt.room)}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:var(--tx)">${esc(finalPt.name||'No name')}</div>
+            <div style="font-size:11px;color:var(--mu);margin-top:1px">${esc(finalPt.dx||'—')}</div>
+          </div>
+          <button class="btn-ghost" style="font-size:11px;color:var(--ac)" id="change-room">Change</button>
+        </div>`:
+        `<div class="room-missing mb14">
+          <div style="font-size:12px;color:var(--warn);margin-bottom:8px">${r.roomNum?`Room "${esc(r.roomNum)}" not in patient list.`:'No room detected in dictation.'}</div>
+          <button class="btn" id="pick-room" style="background:linear-gradient(135deg,#92400e,#78350f);font-size:13px;padding:10px">Select Patient / Room</button>
+        </div>`}
+        ${APP.logShowRoom?buildRoomPicker():''}
+        <!-- Category -->
+        <div class="lbl mb8">Category</div>
+        <div class="flex ai-c gap8 mb14">
+          <span class="cat-pill-lg" style="background:${fc.color}18;border:1px solid ${fc.color}44;color:${fc.color}">${fc.icon} ${fc.label}</span>
+          <button class="btn-ghost" style="font-size:11px" id="toggle-cat">${APP.logShowCat?'Done':'Change'}</button>
+          ${APP.logOverrideCat?`<span style="font-size:10px;color:var(--warn);font-family:var(--f-mono)">✏ Overridden</span>`:''}
+        </div>
+        ${APP.logShowCat?`<div class="cat-grid mb14">${CATS.map(c=>`<button class="cat-chip" data-catid="${c.id}" style="background:${finalCat===c.id?c.color+'22':'#07101f'};border-color:${finalCat===c.id?c.color:'var(--bd)'};color:${finalCat===c.id?c.color:'var(--mu)'}">${c.icon} ${c.label}</button>`).join('')}</div>`:''}
+        <!-- Text -->
+        <div class="lbl mb6">Epic Entry Text</div>
+        <div class="entry-text-box">${esc(r.cleanedText)}</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-sec f1" id="log-back">← Edit</button>
+        <button class="btn f2" id="log-commit" style="font-size:15px;padding:14px;border-radius:12px">＋ Add to Timeline</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildRoomPicker(){
+  const finalSel=APP.logOverrideRoom||(APP.logResult?.patientId);
+  return`<div class="room-picker mb12">
+    <div class="lbl mb8">Select Patient</div>
+    ${!APP.pts.length?`<div style="font-size:12px;color:var(--mu);text-align:center;padding:10px">No patients added yet.</div>`:''}
+    ${APP.pts.map(p=>`<button class="room-picker-btn${finalSel===p.id?' selected':''}" data-pickroom="${p.id}">
+      <span style="font-family:var(--f-mono);font-size:14px;font-weight:700;color:var(--ac);min-width:44px">Rm ${esc(p.room)}</span>
+      <span style="flex:1;font-size:12px">${esc(p.name||'No name')}</span>
+      <span style="font-size:11px;color:var(--mu)">${esc(p.dx||'')}</span>
+    </button>`).join('')}
+    <button class="btn-ghost w100" style="margin-top:4px;font-size:12px" id="cancel-room-pick">Cancel</button>
+  </div>`;
+}
+
+// ──── NOTE MODAL ────
+function buildNoteModal(){
+  if(!APP.noteModalPid)return'';
+  return`<div class="overlay" id="note-modal-ovl">
+    <div class="sheet slide-up">
+      <div style="font-size:16px;font-weight:700;color:#edf6ff;margin-bottom:4px">Generate Epic Note</div>
+      <div style="font-size:12px;color:var(--mu);margin-bottom:16px">Select note type</div>
+      ${Object.entries(EPIC_TYPES).map(([k,v])=>`<button class="btn-sec w100 mb8" data-noteset="${k}" style="text-align:left;padding:12px 15px;border-radius:8px;${APP.noteModalType===k?'border-color:var(--ac);color:var(--ac);background:#0d2a2a':'background:#07101f'}">${v}${k==='sbar_handoff'?' <span style="font-size:10px;color:var(--ok);font-family:var(--f-mono)">← HANDOFF</span>':''}</button>`).join('')}
+      <div class="btn-row mt16">
+        <button class="btn-sec f1" id="note-modal-cancel">Cancel</button>
+        <button class="btn f2" id="note-modal-go">Generate →</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  EVENT HANDLERS
+// ═══════════════════════════════════════════════════════
+function attachEvents(){
+  const el=id=>document.getElementById(id);
+  const on=(id,ev,fn)=>{const e=el(id);if(e)e.addEventListener(ev,fn);};
+
+  // Setup
+  on('s-name','input',e=>{APP.nurse.name=e.target.value;});
+  on('s-shift','change',e=>{APP.nurse.shift=e.target.value;});
+  on('s-unit','change',e=>{APP.nurse.unit=e.target.value;});
+  on('s-start','click',()=>{APP.screen='chart';render();});
+
+  // Note output
+  on('note-back','click',()=>{APP.screen='chart';render();});
+  on('note-copy','click',()=>{
+    navigator.clipboard.writeText(APP.noteOut).then(()=>{
+      const b=el('note-copy');if(b){b.textContent='✓ COPIED!';b.style.background='linear-gradient(135deg,#16a34a,#15803d)';setTimeout(()=>{if(el('note-copy')){el('note-copy').textContent='📋 COPY FOR EPIC';el('note-copy').style.background='';}},2500);}
+    });
+  });
+
+  // Board
+  on('back-board','click',()=>{APP.activeId=null;APP.tab='timeline';render();});
+  on('go-setup','click',()=>{APP.screen='setup';render();});
+  on('board-log-now','click',()=>openLog(null));
+  on('board-search','input',e=>{APP.search=e.target.value;render();});
+  on('add-pt-btn','click',()=>{APP.addingPt=true;render();});
+  on('add-pt-cancel','click',()=>{APP.addingPt=false;render();});
+  on('np-room','input',e=>{APP.newPtRoom=e.target.value;});
+  on('np-name','input',e=>{APP.newPtName=e.target.value;});
+  on('np-mrn','input',e=>{APP.newPtMrn=e.target.value;});
+  on('np-dx','input',e=>{APP.newPtDx=e.target.value;});
+  on('add-pt-save','click',()=>{
+    if(!APP.newPtRoom&&!APP.newPtName)return;
+    APP.pts.push({id:uid(),room:APP.newPtRoom,name:APP.newPtName,mrn:APP.newPtMrn,dx:APP.newPtDx,entries:[],tasks:[],brainImg:null});
+    APP.newPtRoom=APP.newPtName=APP.newPtMrn=APP.newPtDx='';APP.addingPt=false;render();
+  });
+
+  // Patient cards
+  document.querySelectorAll('[data-ptid]').forEach(el=>{
+    el.addEventListener('click',()=>{APP.activeId=el.dataset.ptid;APP.tab='timeline';render();});
+  });
+
+  // Patient detail
+  on('remove-pt','click',()=>{APP.pts=APP.pts.filter(p=>p.id!==APP.activeId);APP.activeId=null;render();});
+  document.querySelectorAll('.tab').forEach(el=>{
+    el.addEventListener('click',()=>{APP.tab=el.dataset.tab;render();});
+  });
+  on('pt-log-now','click',()=>openLog(APP.activeId));
+
+  // Entry delete
+  document.querySelectorAll('[data-del]').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      const pid=el.dataset.pid,eid=el.dataset.del;
+      const p=APP.pts.find(p=>p.id===pid);
+      if(p)p.entries=p.entries.filter(e=>e.id!==eid);
+      render();
+    });
+  });
+
+  // Epic note chips
+  document.querySelectorAll('[data-notetype]').forEach(el=>{
+    el.addEventListener('click',()=>{APP.noteModalPid=APP.activeId;APP.noteModalType=el.dataset.notetype;render();});
+  });
+
+  // Note modal
+  on('note-modal-cancel','click',()=>{APP.noteModalPid=null;render();});
+  on('note-modal-ovl','click',e=>{if(e.target.id==='note-modal-ovl'){APP.noteModalPid=null;render();}});
+  document.querySelectorAll('[data-noteset]').forEach(el=>{
+    el.addEventListener('click',()=>{APP.noteModalType=el.dataset.noteset;render();});
+  });
+  on('note-modal-go','click',()=>{
+    const p=APP.pts.find(p=>p.id===APP.noteModalPid);
+    if(!p)return;
+    APP.noteOut=generateNote(p,EPIC_TYPES[APP.noteModalType],APP.nurse);
+    APP.noteModalPid=null;APP.screen='note';render();
+  });
+
+  // Brain
+  on('brain-cam','click',()=>el('brain-file-cam')?.click());
+  on('brain-lib','click',()=>el('brain-file-lib')?.click());
+  on('brain-recam','click',()=>el('brain-file-cam')?.click());
+  ['brain-file-cam','brain-file-lib'].forEach(id=>{
+    on(id,'change',e=>{
+      const f=e.target.files[0];if(!f)return;
+      const r=new FileReader();
+      r.onload=ev=>{const p=pt();if(p){p.brainImg=ev.target.result;render();}};
+      r.readAsDataURL(f);
+    });
+  });
+  on('brain-clear','click',()=>{const p=pt();if(p){p.brainImg=null;delete APP.brainScale[p.id];render();}});
+  on('brain-reset','click',()=>{const p=pt();if(p){APP.brainScale[p.id]=1;render();}});
+  on('brain-zoomin','click',()=>{const p=pt();if(p){APP.brainScale[p.id]=Math.min(5,(APP.brainScale[p.id]||1)+.5);render();}});
+  on('brain-zoomout','click',()=>{const p=pt();if(p){APP.brainScale[p.id]=Math.max(1,(APP.brainScale[p.id]||1)-.5);render();}});
+
+  // Tasks
+  on('task-input','input',e=>{APP.taskText=e.target.value;});
+  document.querySelectorAll('[data-prio]').forEach(el=>{
+    el.addEventListener('click',()=>{APP.taskPrio=el.dataset.prio;render();});
+  });
+  on('task-add','click',()=>{
+    if(!APP.taskText.trim())return;
+    const p=pt();if(!p)return;
+    p.tasks.push({id:uid(),text:APP.taskText.trim(),prio:APP.taskPrio,done:false});
+    APP.taskText='';render();
+  });
+  document.querySelectorAll('[data-toggle]').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      const p=APP.pts.find(p=>p.id===el.dataset.pid);
+      const t=p?.tasks.find(t=>t.id===el.dataset.toggle);
+      if(t)t.done=!t.done;render();
+    });
+  });
+  document.querySelectorAll('[data-deltask]').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      const p=APP.pts.find(p=>p.id===el.dataset.pid);
+      if(p)p.tasks=p.tasks.filter(t=>t.id!==el.dataset.deltask);render();
+    });
+  });
+
+  // Log Now modal
+  on('log-close','click',closeLog);
+  on('log-overlay','click',e=>{if(e.target.id==='log-overlay')closeLog();});
+  on('log-ta','input',e=>{APP.logText=e.target.value;});
+  on('toggle-edit-time','click',()=>{APP.editTime=!APP.editTime;render();});
+  on('log-time-inp','change',e=>{APP.logTime=e.target.value;});
+  on('mic-toggle','click',()=>{APP.logRec?REC.stop():REC.start();});
+  on('log-process','click',processLog);
+  on('log-back','click',()=>{APP.logResult=null;render();});
+  on('log-commit','click',commitLog);
+  on('toggle-cat','click',()=>{APP.logShowCat=!APP.logShowCat;render();});
+  on('change-room','click',()=>{APP.logShowRoom=true;render();});
+  on('pick-room','click',()=>{APP.logShowRoom=true;render();});
+  on('cancel-room-pick','click',()=>{APP.logShowRoom=false;render();});
+  document.querySelectorAll('[data-catid]').forEach(el=>{
+    el.addEventListener('click',()=>{APP.logOverrideCat=el.dataset.catid;APP.logShowCat=false;render();});
+  });
+  document.querySelectorAll('[data-pickroom]').forEach(el=>{
+    el.addEventListener('click',()=>{APP.logOverrideRoom=el.dataset.pickroom;APP.logShowRoom=false;render();});
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  LOG NOW LOGIC
+// ═══════════════════════════════════════════════════════
+function openLog(preRoomPid){
+  APP.logOpen=true;
+  APP.logCapTime=new Date().toISOString();
+  APP.logText='';APP.logInterim='';APP.logTime='';
+  APP.logResult=null;APP.logOverrideCat=null;APP.logOverrideRoom=null;
+  APP.logShowCat=false;APP.logShowRoom=false;APP.logRec=false;APP.editTime=false;
+  // Pre-set room if opening from patient detail
+  if(preRoomPid){
+    const p=APP.pts.find(p=>p.id===preRoomPid);
+    if(p)APP._preRoomId=preRoomPid;
+  } else {APP._preRoomId=null;}
+  render();
+}
+function closeLog(){
+  // Stop recognition internals without triggering REC.stop()'s render()
+  REC._going = false;
+  if (REC._inst) { try { REC._inst.stop(); } catch(e) {} REC._inst = null; }
+  APP.logRec = false;
+  APP.logInterim = '';
+  APP.logOpen = false;
+  render();
+}
+// startRec / stopRec are now handled by the REC object above
+
+function processLog(){
+  // Flush any interim speech into the text before processing
+  if (APP.logInterim && APP.logInterim.trim()) {
+    APP.logText = ((APP.logText||'') + ' ' + APP.logInterim).trim();
+    APP.logInterim = '';
+  }
+  const raw = APP.logText.trim();
+  if (!raw) return;
+  // Stop recognition (without re-rendering mid-flight)
+  REC._going = false;
+  if (REC._inst) { try { REC._inst.stop(); } catch(e) {} REC._inst = null; }
+  APP.logRec = false;
+  // Classify
+  const detectedRoom=extractRoom(raw);
+  const cleanBase=stripRoom(raw);
+  const category=classify(cleanBase);
+  const cleanedText=polish(cleanBase);
+  let patientId=APP._preRoomId||null;
+  if(!patientId){
+    const rm=detectedRoom;
+    if(rm){const match=APP.pts.find(p=>p.room.toUpperCase()===rm.toUpperCase());if(match)patientId=match.id;}
+  }
+  let time=APP.logCapTime;
+  if(APP.logTime){const[h,m]=APP.logTime.split(':');const d=new Date();d.setHours(+h,+m,0,0);time=d.toISOString();}
+  APP.logResult={category,cleanedText,roomNum:detectedRoom,patientId,time};
+  APP.logOverrideCat=null;APP.logOverrideRoom=null;APP.logShowCat=false;APP.logShowRoom=false;
+  render();
+}
+
+function commitLog(){
+  const r=APP.logResult;if(!r)return;
+  const finalCat=APP.logOverrideCat||r.category;
+  const finalPid=APP.logOverrideRoom||r.patientId;
+  const entry={id:uid(),category:finalCat,text:r.cleanedText,time:r.time};
+  if(finalPid){
+    const p=APP.pts.find(p=>p.id===finalPid);
+    if(p){p.entries.push(entry);}
+  } else {
+    // Create new patient shell
+    const newPt={id:uid(),room:r.roomNum||'?',name:'',mrn:'',dx:'',entries:[entry],tasks:[],brainImg:null};
+    APP.pts.push(newPt);
+  }
+  closeLog();
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════
+render();
+</script>
+</body>
+</html>
