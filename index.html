@@ -420,7 +420,7 @@ function classify(raw){
   if(/\b(dr\.?|md|np|pa|physician|attending|resident)\b/i.test(text)&&/\b(notif|called|paged|spoke|discuss|inform|update|aware)\b/i.test(text))scores.physician=(scores.physician||0)+10;
   if(/\b(critical|panic|result|reported|called to)\b/i.test(text)&&/\b(potassium|sodium|glucose|hemoglobin|hgb|inr|troponin|lactate|ph|pco2|wbc|platelet|creatinine|calcium|magnesium|bun)\b/i.test(text))scores.lab=(scores.lab||0)+8;
   if(/\d+\s*(mg|mcg|meq|units?|mL|g\b)/i.test(text))scores.medication=(scores.medication||0)+6;
-  if(/\d+\s*\/\s*10/i.test(text)||/pain\s+(score|level|rated|scale)/i.test(text))scores.pain=(scores.pain||0)+8;
+  if(/\d+\s*\/\s*10/i.test(text)||/pain\s+(score|level|rated|scale)/i.test(text)||/\b(\d+)\s*out\s*of\s*10\b/i.test(text))scores.pain=(scores.pain||0)+12;
   if(/\d{2,3}\s*\/\s*\d{2,3}/.test(text))scores.cardiac=(scores.cardiac||0)+6;
   if(/\d{2,3}\s*%/.test(text)&&/\b(spo2|o2|sat|oxygen)\b/i.test(text))scores.resp=(scores.resp||0)+6;
   if(/\d+\s*m[lL]/i.test(text)&&/\b(urine|uo|foley|output)\b/i.test(text))scores.gi_gu=(scores.gi_gu||0)+7;
@@ -996,6 +996,17 @@ function buildPatient(p){
     ${APP.tab==='reqdocs'?buildReqDocs(p):''}
     ${APP.tab==='timeline'?buildPatientBottomBar(p):''}
   `;
+}
+
+function buildPatientBottomBar(p){
+  return`<div class="log-btn-wrap">
+    <div class="epic-chips">
+      ${Object.entries(EPIC_TYPES).map(([k,v])=>`<button class="epic-chip" data-notetype="${k}">📄 ${v}</button>`).join('')}
+    </div>
+    <button class="btn log-btn-glow" id="pt-log-now" style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;padding:15px;border-radius:14px;box-shadow:0 0 24px var(--ac2)">
+      <span style="font-size:22px">🎙</span> LOG NOW · Room ${esc(p.room)}
+    </button>
+  </div>`;
 }
 
 function buildTimeline(p,timeline){
