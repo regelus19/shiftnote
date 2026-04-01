@@ -594,7 +594,6 @@ function rescheduleAllAlarms(){
 //  SMART PHRASE HELPERS
 // ═══════════════════════════════════════════════════════
 const allPhrases=()=>[...DEFAULT_PHRASES,...(APP.customPhrases||[])];
-const allRdItems=()=>[...DEFAULT_RD_ITEMS,...(APP.customRdItems||[])];
 
 function detectDotPhrase(text){
   // Find last word that starts with a dot
@@ -705,16 +704,8 @@ const APP={
   // Required Documentation
   rdTemplates: saved?.rdTemplates||DEFAULT_RD_TEMPLATES.map(t=>({...t})),
   rdManagerOpen:false,
-  newRdLabel:'', newRdRequired:false,
+  newRdLabel:'', newRdRequired:false, newRdFreq:'Each shift', newRdCategory:'assessment',
   logPhraseSuggestions:[], logDotWord:'',
-  // Required Documentation
-  customRdItems: saved?.customRdItems||[],
-  rdManagerOpen: false,
-  newRdLabel:'', newRdGroup:'General', newRdRequired:false,
-  // Required Documentation
-  rdTemplates: saved?.rdTemplates||DEFAULT_RD_TEMPLATES.map(t=>({...t})),
-  rdManagerOpen:false,
-  newRdLabel:'', newRdFreq:'Each shift', newRdCategory:'assessment',
   editTime:false,
 };
 
@@ -1010,12 +1001,11 @@ function buildPatient(p){
   const pendingCount=p.tasks.filter(t=>!t.done).length;
   const bImgId=`bimg-${p.id}`;
   const scale=APP.brainScale[p.id]||1;
-  const rdItems=allRdItems();
-  const rdStatus=p.rdStatus||{};
-  const rdDone=rdItems.filter(i=>rdStatus[i.id]?.done).length;
-  const rdTotal=rdItems.length;
-  const rdIncomplete=rdTotal-rdDone;
-  const rdBadge=`${rdDone}/${rdTotal}`;
+  const docs=p.reqDocs||[];
+  const rdDone=docs.filter(d=>d.done).length;
+  const rdTotal=docs.length;
+  const rdBadge=rdTotal?`${rdDone}/${rdTotal}`:null;
+  const rdUrgent=rdTotal>0&&rdDone<rdTotal;
   return`
     <div class="pt-strip">
       <div class="strip-item"><label>Patient</label><span>${esc(p.name||'—')}</span></div>
@@ -1025,11 +1015,10 @@ function buildPatient(p){
     </div>
     <div class="tabs" style="overflow-x:auto">
       ${[
-        {id:'timeline',label:'Timeline',badge:timeline.length},
-        {id:'brain',label:'🧠 Brain',badge:p.brainImg?'📷':null},
-        {id:'tasks',label:'Tasks',badge:pendingCount||null},
-        {id:'reqdoc',label:'Req Doc',badge:(()=>{const rd=p.reqDocs||[];const done=rd.filter(r=>r.done).length;return rd.length?`${done}/${rd.length}`:null;})()},
-        {id:'reqdocs',label:'Req. Docs',badge:rdBadge,urgent:rdIncomplete>0},
+        {id:'timeline', label:'Timeline', badge:timeline.length},
+        {id:'brain',    label:'🧠 Brain', badge:p.brainImg?'📷':null},
+        {id:'tasks',    label:'Tasks',    badge:pendingCount||null},
+        {id:'reqdocs',  label:'Req Docs', badge:rdBadge, urgent:rdUrgent},
       ].map(t=>`
         <button class="tab${APP.tab===t.id?' active':''}" data-tab="${t.id}" style="white-space:nowrap">
           ${t.label}${t.badge!==null&&t.badge!==undefined?`<span class="tab-badge" style="${t.urgent&&APP.tab!==t.id?'background:#2a1800;color:var(--warn);':''}">${t.badge}</span>`:''}
@@ -1038,7 +1027,7 @@ function buildPatient(p){
     ${APP.tab==='timeline'?buildTimeline(p,timeline):''}
     ${APP.tab==='brain'?buildBrain(p,bImgId,scale):''}
     ${APP.tab==='tasks'?buildTasks(p):''}
-    ${APP.tab==='reqdoc'?buildReqDoc(p):''}
+    ${APP.tab==='reqdocs'?buildReqDocs(p):''}
     ${APP.tab==='timeline'?buildPatientBottomBar(p):''}
   `;
 }
@@ -1320,326 +1309,6 @@ function buildRdManager(){
   </div>`;
 }
 
-function buildReqDoc(p){
-  const items=p.reqDocs||[];
-  const done=items.filter(r=>r.done).length;
-  const total=items.length;
-  const pct=total?Math.round(done/total*100):0;
-  const required=items.filter(r=>r.required&&!r.done);
-  const optional=items.filter(r=>!r.required&&!r.done);
-  const completed=items.filter(r=>r.done);
-  return`<div class="page" style="padding-bottom:80px">
-    <!-- Progress bar -->
-    <div style="background:var(--surf2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="font-size:13px;font-weight:600;color:var(--tx)">${done} of ${total} completed</div>
-        <div style="font-size:12px;font-family:var(--f-mono);color:${pct===100?'var(--ok)':pct>=50?'var(--warn)':'var(--danger)'};font-weight:700">${pct}%</div>
-      </div>
-      <div style="height:6px;background:var(--bd);border-radius:99px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${pct===100?'var(--ok)':pct>=50?'var(--warn)':'var(--danger)'};border-radius:99px;transition:width .3s ease"></div>
-      </div>
-    </div>
-
-    <!-- Add item -->
-    <div class="surf2 mb16">
-      <div class="lbl">Add Item to This Patient</div>
-      <input class="inp mb8" id="rd-new-label" placeholder="e.g. Wound Care Assessment" value="${esc(APP.newRdLabel)}" style="font-size:13px"/>
-      <div style="display:flex;gap:8px;align-items:center">
-        <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--mu);cursor:pointer">
-          <input type="checkbox" id="rd-new-required" ${APP.newRdRequired?'checked':''} style="width:16px;height:16px;accent-color:var(--danger)"/>
-          <span>Required</span>
-        </label>
-        <button class="btn" id="rd-add-item" style="flex:1;padding:9px;font-size:12px">＋ Add</button>
-        <button class="btn-ghost" id="open-rd-manager" style="font-size:11px;color:var(--ac);white-space:nowrap">⚙ Unit Templates</button>
-      </div>
-    </div>
-
-    <!-- Required incomplete -->
-    ${required.length?`
-      <div class="section-lbl" style="color:var(--danger)">REQUIRED — NOT DOCUMENTED (${required.length})</div>
-      ${required.map(r=>buildRdRow(p.id,r)).join('')}
-    `:''}
-
-    <!-- Optional incomplete -->
-    ${optional.length?`
-      <div class="section-lbl" style="margin-top:${required.length?'16px':'0'}">OPTIONAL — PENDING (${optional.length})</div>
-      ${optional.map(r=>buildRdRow(p.id,r)).join('')}
-    `:''}
-
-    <!-- Completed -->
-    ${completed.length?`
-      <div class="section-lbl" style="margin-top:16px;color:var(--ok)">COMPLETED (${completed.length})</div>
-      ${completed.map(r=>buildRdRow(p.id,r)).join('')}
-    `:''}
-
-    ${!items.length?`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No items yet</div><div class="empty-body">Add items above or manage your unit's<br>default template with ⚙ Unit Templates</div></div>`:''}
-    ${buildRdTemplateManager()}
-  </div>`;
-}
-
-function buildRdRow(pid,r){
-  const cat=CMAP[r.category]||CMAP['other'];
-  if(r.done)return`<div style="background:#060e07;border:1px solid #1a3a20;border-radius:10px;padding:10px 13px;margin-bottom:7px;display:flex;gap:10px;align-items:center;opacity:.6">
-    <div data-rd-toggle="${r.id}" data-pid="${pid}" style="width:22px;height:22px;border-radius:5px;background:var(--ok);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;color:#fff;font-size:13px">✓</div>
-    <div style="flex:1">
-      <div style="font-size:13px;color:#64748b;text-decoration:line-through">${esc(r.label)}</div>
-      ${r.time?`<div style="font-size:10px;color:var(--ok);font-family:var(--f-mono);margin-top:2px">✓ ${fmt(r.time)}</div>`:''}
-    </div>
-    <button class="btn-danger" data-rd-del="${r.id}" data-pid="${pid}" style="flex-shrink:0">✕</button>
-  </div>`;
-  return`<div class="task-row fade-up" style="border-color:${r.required?'rgba(239,68,68,.2)':'var(--bd)'}">
-    <div data-rd-toggle="${r.id}" data-pid="${pid}" style="width:22px;height:22px;border-radius:5px;border:1.5px solid ${r.required?'var(--danger)':'var(--mu)'};background:transparent;flex-shrink:0;cursor:pointer;margin-top:1px"></div>
-    <div style="flex:1">
-      <div style="font-size:13px;color:var(--tx);line-height:1.4">${esc(r.label)}</div>
-      <div style="display:flex;gap:6px;margin-top:3px;align-items:center">
-        ${r.required?`<span style="font-size:10px;color:var(--danger);font-family:var(--f-mono);font-weight:700">REQUIRED</span>`:`<span style="font-size:10px;color:var(--mu);font-family:var(--f-mono)">OPTIONAL</span>`}
-        <span style="font-size:10px;color:${cat.color};font-family:var(--f-mono)">${cat.icon} ${cat.label}</span>
-      </div>
-    </div>
-    <button class="btn-danger" data-rd-del="${r.id}" data-pid="${pid}" style="flex-shrink:0">✕</button>
-  </div>`;
-}
-
-function buildRdTemplateManager(){
-  if(!APP.rdManagerOpen)return'';
-  const templates=APP.rdTemplates||[];
-  return`<div class="overlay" id="rd-manager-overlay" style="z-index:300">
-    <div class="sheet slide-up">
-      <div class="row-between mb14">
-        <div>
-          <div style="font-size:17px;font-weight:700;color:#edf6ff">⚙ Unit RD Templates</div>
-          <div style="font-size:11px;color:var(--mu);margin-top:2px;font-family:var(--f-mono)">Applied to every new patient you add</div>
-        </div>
-        <button class="btn-ghost" id="close-rd-manager" style="font-size:16px;padding:4px 10px">✕</button>
-      </div>
-      <!-- Add template item -->
-      <div class="surf2 mb14">
-        <div class="lbl mb8">Add to Default Template</div>
-        <input class="inp mb8" id="tmpl-label" placeholder="e.g. CLABSI Bundle Documentation" value="${esc(APP.newRdLabel)}" style="font-size:13px"/>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-          <div>
-            <div class="lbl" style="margin-bottom:4px">Category</div>
-            <select class="sel" id="tmpl-cat" style="font-size:12px;padding:9px 10px">
-              ${CATS.map(c=>`<option value="${c.id}"${APP.newPhraseCat===c.id?' selected':''}>${c.icon} ${c.label}</option>`).join('')}
-            </select>
-          </div>
-          <div style="display:flex;flex-direction:column;justify-content:flex-end">
-            <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--mu);cursor:pointer;padding-bottom:9px">
-              <input type="checkbox" id="tmpl-required" ${APP.newRdRequired?'checked':''} style="width:16px;height:16px;accent-color:var(--danger)"/>
-              Mark as Required
-            </label>
-          </div>
-        </div>
-        <button class="btn" id="save-tmpl-item" style="padding:11px;font-size:13px">＋ Add to Template</button>
-      </div>
-      <!-- Existing templates -->
-      <div class="lbl mb8">Current Template (${templates.length} items)</div>
-      ${templates.map(t=>{
-        const cat=CMAP[t.category]||CMAP['other'];
-        return`<div style="background:var(--surf2);border:1px solid var(--bd);border-radius:10px;padding:10px 13px;margin-bottom:8px;display:flex;gap:10px;align-items:center">
-          <div style="flex:1">
-            <div style="font-size:13px;color:var(--tx)">${esc(t.label)}</div>
-            <div style="display:flex;gap:6px;margin-top:3px">
-              ${t.required?`<span style="font-size:10px;color:var(--danger);font-family:var(--f-mono);font-weight:700">REQUIRED</span>`:`<span style="font-size:10px;color:var(--mu);font-family:var(--f-mono)">OPTIONAL</span>`}
-              <span style="font-size:10px;color:${cat.color};font-family:var(--f-mono)">${cat.icon}</span>
-            </div>
-          </div>
-          <button class="btn-danger" data-del-tmpl="${t.id}">✕</button>
-        </div>`;
-      }).join('')}
-      ${!templates.length?`<div style="text-align:center;padding:20px;color:var(--mu);font-size:12px">No template items. Add some above.</div>`:''}
-      <p style="font-size:11px;color:var(--mu);text-align:center;margin-top:12px;font-family:var(--f-mono)">Changes apply to new patients only</p>
-    </div>
-  </div>`;
-}
-
-function buildPatientBottomBar(p){
-  return`<div class="log-btn-wrap">
-    <div class="epic-chips" id="epic-chips">
-      ${Object.entries(EPIC_TYPES).map(([k,v])=>`<button class="epic-chip" data-notetype="${k}">📄 ${v}</button>`).join('')}
-    </div>
-    <button class="btn log-btn-glow" id="pt-log-now" style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;padding:15px;border-radius:14px;box-shadow:0 0 24px var(--ac2)">
-      <span style="font-size:22px">🎙</span> LOG NOW · Room ${esc(p.room)}
-    </button>
-  </div>`;
-}
-
-// ──── LOG NOW MODAL ────
-function buildLogModal(){
-  if(!APP.logOpen)return'';
-  const p=pt();
-  const capTime=APP.logCapTime?new Date(APP.logCapTime):new Date();
-  const dTime=capTime.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:true});
-  if(APP.logResult){return buildLogPreview(dTime);}
-
-  // Dot-phrase suggestions
-  const suggBox=APP.logPhraseSuggestions.length?`
-    <div class="phrase-suggestion-box mb8">
-      <div style="padding:6px 12px;font-size:10px;color:var(--ac);font-family:var(--f-mono);letter-spacing:.15em;border-bottom:1px solid var(--bd)">
-        SMARTPHRASE MATCH — TAP TO INSERT
-      </div>
-      ${APP.logPhraseSuggestions.map(ph=>`
-        <div class="phrase-suggestion-item" data-insert-phrase="${ph.id}">
-          <span class="phrase-trigger">${esc(ph.trigger)}</span>
-          <div style="flex:1">
-            <div style="font-size:12px;font-weight:600;color:var(--tx)">${esc(ph.label)}</div>
-            <div style="font-size:10px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${esc(ph.text.substring(0,80))}…</div>
-          </div>
-        </div>`).join('')}
-    </div>`:'';
-
-  const voiceBox=`<div class="log-voice-box${APP.logRec?' recording':''}" id="log-voice-box">
-    <textarea class="log-ta" id="log-ta" placeholder="Speak or type…&#10;Type . to see SmartPhrases  e.g.  .vitals  .notified  .drip&#10;&#10;&quot;Room 12, K+ 3.1 critical, Dr. Cruz notified at 0320&quot;">${esc(APP.logText)}${APP.logInterim?(' '+APP.logInterim+'…'):''}</textarea>
-    <div id="rec-live-dot" class="rec-indicator" style="display:${APP.logRec?'flex':'none'}"><div class="rec-dot blink"></div><span style="font-family:var(--f-mono);font-size:10px;color:var(--red);letter-spacing:.12em">LIVE</span></div>
-  </div>`;
-
-  return`<div class="overlay" id="log-overlay">
-    <div class="sheet slide-up">
-      <div class="row-between mb16">
-        <div>
-          <div style="font-size:18px;font-weight:700;color:#edf6ff">Log Now</div>
-          <div class="flex ai-c gap8 mt6">
-            <span style="font-family:var(--f-mono);font-size:13px;color:var(--ac);font-weight:700">${dTime}</span>
-            <span style="font-family:var(--f-mono);font-size:10px;color:var(--mu)">AUTO-TIMESTAMPED</span>
-            <button class="btn-ghost" style="padding:2px 8px;font-size:10px" id="toggle-edit-time">${APP.editTime?'Done':'Edit'}</button>
-          </div>
-          ${APP.editTime?`<input type="time" class="inp" id="log-time-inp" style="width:auto;margin-top:6px;font-size:12px;padding:6px 10px" value="${APP.logTime}"/>`:''}
-        </div>
-        <button class="btn-ghost" id="log-close" style="font-size:16px;padding:4px 10px">✕</button>
-      </div>
-      ${voiceBox}
-      ${suggBox}
-      <div id="rec-live-status" style="font-size:11px;color:var(--red);margin-bottom:8px;display:${APP.logRec?'flex':'none'};gap:6px;align-items:center;font-family:var(--f-mono)"><div class="rec-dot blink"></div> LISTENING — tap ⬛ to stop</div>
-      <div class="flex gap8 mb10">
-        <button class="mic-btn${APP.logRec?' active':''}" id="mic-toggle" style="flex:1;margin-bottom:0">
-          <span class="mic-icon">${APP.logRec?'⬛':'🎙'}</span>
-          <div class="mic-label">
-            <strong>${APP.logRec?'Tap to Stop':'Tap to Speak'}</strong>
-            <small>${APP.logRec?'Recording…':'Mic off'}</small>
-          </div>
-        </button>
-        <button id="open-phrase-picker" style="flex:none;width:64px;border-radius:14px;border:2px solid var(--bd);background:var(--surf2);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
-          <span style="font-size:20px">📝</span>
-          <span style="font-size:9px;font-family:var(--f-mono);color:var(--ac)">.phrase</span>
-        </button>
-      </div>
-      <button class="btn mb10" id="log-process" ${!APP.logText.trim()?'disabled':''} style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;padding:15px;border-radius:14px">
-        <span style="font-size:18px">✦</span> Process &amp; Classify
-      </button>
-      <p style="font-size:11px;color:var(--mu);text-align:center;font-family:var(--f-mono)">Include room · "Room 5…" · "Rm 12…" · "Bed 7…"<br><span style="color:#2a3e55">Type a dot to trigger SmartPhrases e.g. <span style="color:var(--ac)">.vitals</span></span></p>
-    </div>
-  </div>
-  ${buildPhrasePicker()}
-  ${buildPhraseManager()}`;
-}
-
-function buildRD(p){
-  const items=allRdItems();
-  const status=p.rdStatus||{};
-  const total=items.length;
-  const done=items.filter(i=>status[i.id]?.done).length;
-  const pct=total?Math.round(done/total*100):0;
-
-  // Group items
-  const groups={};
-  items.forEach(i=>{(groups[i.group]=groups[i.group]||[]).push(i);});
-
-  return`<div class="page" style="padding-bottom:80px">
-    <!-- Progress bar -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-size:11px;font-family:var(--f-mono);color:var(--mu)">COMPLETION</div>
-      <div style="font-size:12px;font-family:var(--f-mono);color:${pct===100?'var(--ok)':'var(--ac)'};font-weight:700">${done}/${total} &nbsp;${pct}%</div>
-    </div>
-    <div class="rd-progress-bar mb14">
-      <div class="rd-progress-fill" style="width:${pct}%"></div>
-    </div>
-
-    <!-- Quick actions -->
-    <div style="display:flex;gap:8px;margin-bottom:16px">
-      <button class="btn-sec" id="rd-check-all" style="flex:1;font-size:12px;color:var(--ok)">✓ Check All Required</button>
-      <button class="btn-sec" id="rd-clear-all" style="flex:none;font-size:12px;color:var(--mu);padding:10px 12px">Reset</button>
-      <button class="btn-sec" id="rd-manage" style="flex:none;font-size:12px;color:var(--ac);padding:10px 12px">⚙ Manage</button>
-    </div>
-
-    <!-- RD items by group -->
-    ${Object.entries(groups).map(([group,groupItems])=>`
-      <div class="rd-group-label">${esc(group)}</div>
-      ${groupItems.map(item=>{
-        const s=status[item.id];
-        const isDone=s?.done;
-        return`<div class="rd-row${isDone?' done':''}">
-          <div class="rd-cb${isDone?' done':''}" data-rd-toggle="${item.id}" data-pid="${p.id}" style="border-color:${isDone?'var(--ok)':'var(--ac)44'}">
-            ${isDone?`<span style="color:#fff;font-size:13px">✓</span>`:''}
-          </div>
-          <div style="flex:1">
-            <div class="${isDone?'rd-done-label':'rd-label'}">
-              ${esc(item.label)}${item.required?`<span class="rd-required-star">★</span>`:''}
-              ${item.id.startsWith('rd')?'':`<span style="font-size:9px;color:var(--warn);font-family:var(--f-mono);margin-left:6px">CUSTOM</span>`}
-            </div>
-            ${isDone?`<div class="rd-timestamp">✓ ${fmt(s.time)}</div>`:''}
-          </div>
-          ${!item.id.startsWith('rd')?`<button class="btn-danger" data-del-rd="${item.id}" style="flex-shrink:0;margin-top:1px">✕</button>`:''}
-        </div>`;
-      }).join('')}
-    `).join('')}
-
-    <div style="font-size:10px;color:var(--mu);text-align:center;margin-top:16px;font-family:var(--f-mono)">
-      <span style="color:var(--danger)">★</span> = Required &nbsp;·&nbsp; Custom items can be deleted &nbsp;·&nbsp; Tap ⚙ Manage to add facility-specific items
-    </div>
-  </div>
-  ${buildRDManager()}`;
-}
-
-function buildRDManager(){
-  if(!APP.rdManagerOpen)return'';
-  const custom=APP.customRdItems||[];
-  // Collect existing groups for datalist
-  const groups=[...new Set([...DEFAULT_RD_ITEMS.map(i=>i.group),...custom.map(i=>i.group)])];
-  return`<div class="overlay" id="rd-manager-overlay" style="z-index:300">
-    <div class="sheet slide-up">
-      <div class="row-between mb14">
-        <div>
-          <div style="font-size:17px;font-weight:700;color:#edf6ff">⚙ Manage RD Items</div>
-          <div style="font-size:11px;color:var(--mu);margin-top:2px;font-family:var(--f-mono)">Add facility-specific required documentation</div>
-        </div>
-        <button class="btn-ghost" id="close-rd-manager" style="font-size:16px;padding:4px 10px">✕</button>
-      </div>
-
-      <!-- Add new item -->
-      <div class="surf2 mb16">
-        <div class="lbl mb8">Add Custom RD Item</div>
-        <div class="lbl" style="margin-bottom:4px">Documentation Item</div>
-        <input class="inp mb8" id="new-rd-label" placeholder="e.g. IABP Assessment &amp; Documentation" value="${esc(APP.newRdLabel)}" style="font-size:13px"/>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:12px;align-items:end">
-          <div>
-            <div class="lbl" style="margin-bottom:4px">Group / Section</div>
-            <input class="inp" id="new-rd-group" list="rd-groups-list" placeholder="e.g. CVICU, ICU, Cardiac" value="${esc(APP.newRdGroup)}" style="font-size:13px"/>
-            <datalist id="rd-groups-list">${groups.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
-          </div>
-          <div style="padding-bottom:2px">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--mu);white-space:nowrap">
-              <input type="checkbox" id="new-rd-required" ${APP.newRdRequired?'checked':''} style="width:16px;height:16px;accent-color:var(--danger)"/>
-              <span>Required <span style="color:var(--danger)">★</span></span>
-            </label>
-          </div>
-        </div>
-        <button class="btn" id="save-rd-item" style="padding:11px;font-size:13px">＋ Add to All Patients</button>
-      </div>
-
-      <!-- Existing custom items -->
-      ${custom.length?`<div class="lbl mb8">Your Custom Items (${custom.length})</div>`:''}
-      ${custom.map(item=>`
-        <div class="rd-row" style="cursor:default">
-          <div style="flex:1">
-            <div class="rd-label">${esc(item.label)}${item.required?`<span class="rd-required-star">★</span>`:''}</div>
-            <div style="font-size:10px;color:var(--mu);margin-top:2px;font-family:var(--f-mono)">${esc(item.group)}</div>
-          </div>
-          <button class="btn-danger" data-del-custom-rd="${item.id}" style="flex-shrink:0">✕</button>
-        </div>`).join('')}
-      ${!custom.length?`<div style="text-align:center;padding:16px;color:var(--mu);font-size:12px">No custom items yet.<br>Default items cannot be deleted — only custom ones can.</div>`:''}
-    </div>
-  </div>`;
-}
 
 function buildPhrasePicker(){
   if(!APP.phraseOpen)return'';
@@ -1843,7 +1512,7 @@ function attachEvents(){
   on('add-pt-save','click',()=>{
     if(!APP.newPtRoom&&!APP.newPtName)return;
     APP.pts.push({id:uid(),room:APP.newPtRoom,name:APP.newPtName,mrn:APP.newPtMrn,dx:APP.newPtDx,entries:[],tasks:[],brainImg:null,
-      reqDocs:APP.rdTemplates.map(t=>({id:uid(),label:t.label,category:t.category,freq:t.freq,done:false,time:null}))});
+      reqDocs:APP.rdTemplates.map(t=>({id:uid(),label:t.label,category:t.category||'assessment',freq:t.freq||'Each shift',required:t.required||false,done:false,time:null}))});
     APP.newPtRoom=APP.newPtName=APP.newPtMrn=APP.newPtDx='';APP.addingPt=false;render();
   });
 
@@ -1949,6 +1618,58 @@ function attachEvents(){
       render();
     });
   });
+
+  // ── Required Documentation ────────────────────────────
+  on('rd-new-label','input',e=>{APP.newRdLabel=e.target.value;});
+  on('rd-new-required','change',e=>{APP.newRdRequired=e.target.checked;});
+  on('rd-add-item','click',()=>{
+    if(!APP.newRdLabel.trim())return;
+    const p=pt();if(!p)return;
+    p.reqDocs=p.reqDocs||[];
+    p.reqDocs.push({id:uid(),label:APP.newRdLabel.trim(),category:'assessment',freq:'',required:APP.newRdRequired,done:false,time:null});
+    APP.newRdLabel='';APP.newRdRequired=false;render();
+  });
+  // Toggle RD item done/undone
+  document.querySelectorAll('[data-rdtoggle]').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      const p=APP.pts.find(p=>p.id===el.dataset.rdpid);
+      if(!p)return;
+      const doc=p.reqDocs?.find(d=>d.id===el.dataset.rdtoggle);
+      if(doc){doc.done=!doc.done;doc.time=doc.done?new Date().toISOString():null;}
+      render();
+    });
+  });
+  // Delete RD item
+  document.querySelectorAll('[data-rddel]').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      const p=APP.pts.find(p=>p.id===el.dataset.rdpid);
+      if(p)p.reqDocs=p.reqDocs?.filter(d=>d.id!==el.dataset.rddel);
+      render();
+    });
+  });
+  // Open/close RD template manager
+  on('open-rd-manager','click',()=>{APP.rdManagerOpen=true;render();});
+  on('close-rd-manager','click',()=>{APP.rdManagerOpen=false;render();});
+  on('rd-manager-overlay','click',e=>{if(e.target.id==='rd-manager-overlay'){APP.rdManagerOpen=false;render();}});
+  // Template manager form
+  on('rdt-new-label','input',e=>{APP.newRdLabel=e.target.value;});
+  on('rdt-new-freq','input',e=>{APP.newRdFreq=e.target.value;});
+  on('rdt-new-cat','change',e=>{APP.newRdCategory=e.target.value;});
+  on('rdt-save','click',()=>{
+    if(!APP.newRdLabel.trim())return;
+    APP.rdTemplates=[...(APP.rdTemplates||[]),{id:uid(),label:APP.newRdLabel.trim(),category:APP.newRdCategory||'assessment',freq:APP.newRdFreq||'Each shift',required:false}];
+    APP.newRdLabel='';APP.newRdFreq='Each shift';render();
+  });
+  document.querySelectorAll('[data-del-rdt]').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      APP.rdTemplates=(APP.rdTemplates||[]).filter(t=>t.id!==el.dataset.delRdt);
+      render();
+    });
+  });
+  on('rdt-reset','click',()=>{APP.rdTemplates=DEFAULT_RD_TEMPLATES.map(t=>({...t}));render();});
 
   // Log Now modal
   on('log-close','click',closeLog);
@@ -2084,7 +1805,7 @@ function commitLog(){
   } else {
     // Create new patient shell
     const newPt={id:uid(),room:r.roomNum||'?',name:'',mrn:'',dx:'',entries:[entry],tasks:[],brainImg:null,
-      reqDocs:APP.rdTemplates.map(t=>({id:uid(),label:t.label,category:t.category,freq:t.freq,done:false,time:null}))};
+      reqDocs:APP.rdTemplates.map(t=>({id:uid(),label:t.label,category:t.category||'assessment',freq:t.freq||'Each shift',required:t.required||false,done:false,time:null}))};
     APP.pts.push(newPt);
   }
   closeLog();
