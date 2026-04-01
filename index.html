@@ -1362,6 +1362,85 @@ function buildPhraseManager(){
   </div>`;
 }
 
+function buildLogModal(){
+  if(!APP.logOpen)return'';
+  const p=pt();
+  const capTime=APP.logCapTime?new Date(APP.logCapTime):new Date();
+  const dTime=capTime.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:true});
+  if(APP.logResult){return buildLogPreview(dTime);}
+
+  const suggBox=APP.logPhraseSuggestions&&APP.logPhraseSuggestions.length?`
+    <div class="phrase-suggestion-box mb8">
+      <div style="padding:6px 12px;font-size:10px;color:var(--ac);font-family:var(--f-mono);letter-spacing:.15em;border-bottom:1px solid var(--bd)">SMARTPHRASE — TAP TO INSERT</div>
+      ${APP.logPhraseSuggestions.map(ph=>`
+        <div class="phrase-suggestion-item" data-insert-phrase="${ph.id}">
+          <span class="phrase-trigger">${esc(ph.trigger)}</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600;color:var(--tx)">${esc(ph.label)}</div>
+            <div style="font-size:10px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${esc(ph.text.substring(0,80))}…</div>
+          </div>
+        </div>`).join('')}
+    </div>`:'';
+
+  return`<div class="overlay" id="log-overlay">
+    <div class="sheet slide-up">
+      <div class="row-between mb16">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:#edf6ff">Log Now</div>
+          <div class="flex ai-c gap8 mt6">
+            <span style="font-family:var(--f-mono);font-size:13px;color:var(--ac);font-weight:700">${dTime}</span>
+            <span style="font-family:var(--f-mono);font-size:10px;color:var(--mu)">AUTO-TIMESTAMPED</span>
+            <button class="btn-ghost" style="padding:2px 8px;font-size:10px" id="toggle-edit-time">${APP.editTime?'Done':'Edit'}</button>
+          </div>
+          ${APP.editTime?`<input type="time" class="inp" id="log-time-inp" style="width:auto;margin-top:6px;font-size:12px;padding:6px 10px" value="${APP.logTime}"/>`:''}
+        </div>
+        <button class="btn-ghost" id="log-close" style="font-size:16px;padding:4px 10px">✕</button>
+      </div>
+
+      <div class="log-voice-box${APP.logRec?' recording':''}" id="log-voice-box">
+        <textarea class="log-ta" id="log-ta"
+          placeholder="Speak or type…&#10;Type . to trigger SmartPhrases e.g. .vitals  .notified  .drip&#10;&#10;&quot;Room 12, K+ 3.1 critical, Dr. Cruz notified at 0320&quot;"
+          >${esc(APP.logText)}${APP.logInterim?(' '+APP.logInterim+'…'):''}</textarea>
+        <div class="rec-indicator" style="display:${APP.logRec?'flex':'none'}">
+          <div class="rec-dot blink"></div>
+          <span style="font-family:var(--f-mono);font-size:10px;color:var(--red);letter-spacing:.12em">LIVE</span>
+        </div>
+      </div>
+
+      ${suggBox}
+
+      <div style="font-size:11px;color:var(--red);margin-bottom:8px;display:${APP.logRec?'flex':'none'};gap:6px;align-items:center;font-family:var(--f-mono)">
+        <div class="rec-dot blink"></div> LISTENING — tap ⬛ to stop
+      </div>
+
+      <div class="flex gap8 mb10">
+        <button class="mic-btn${APP.logRec?' active':''}" id="mic-toggle" style="flex:1;margin-bottom:0">
+          <span class="mic-icon">${APP.logRec?'⬛':'🎙'}</span>
+          <div class="mic-label">
+            <strong>${APP.logRec?'Tap to Stop':'Tap to Speak'}</strong>
+            <small>${APP.logRec?'Recording…':'Mic off'}</small>
+          </div>
+        </button>
+        <button id="open-phrase-picker" style="flex:none;width:64px;border-radius:14px;border:2px solid var(--bd);background:var(--surf2);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">
+          <span style="font-size:20px">📝</span>
+          <span style="font-size:9px;font-family:var(--f-mono);color:var(--ac)">.phrase</span>
+        </button>
+      </div>
+
+      <button class="btn mb10" id="log-process" ${!APP.logText.trim()?'disabled':''} style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;padding:15px;border-radius:14px">
+        <span style="font-size:18px">✦</span> Process &amp; Classify
+      </button>
+
+      <p style="font-size:11px;color:var(--mu);text-align:center;font-family:var(--f-mono)">
+        Include room · "Room 5…" · "Rm 12…" · "Bed 7…"<br>
+        <span style="color:#2a3e55">Type <span style="color:var(--ac)">.</span> to trigger SmartPhrases</span>
+      </p>
+    </div>
+  </div>
+  ${buildPhrasePicker()}
+  ${buildPhraseManager()}`;
+}
+
 function buildLogPreview(dTime){
   const r=APP.logResult;
   const finalCat=APP.logOverrideCat||r.category;
