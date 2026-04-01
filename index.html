@@ -1383,7 +1383,7 @@ function buildLogModal(){
     </div>`:'';
 
   return`<div class="overlay" id="log-overlay">
-    <div class="sheet slide-up">
+    <div class="sheet">
       <div class="row-between mb16">
         <div>
           <div style="font-size:18px;font-weight:700;color:#edf6ff">Log Now</div>
@@ -1447,7 +1447,7 @@ function buildLogPreview(dTime){
   const fc=CMAP[finalCat]||CMAP['other'];
   const finalPt=APP.logOverrideRoom?APP.pts.find(p=>p.id===APP.logOverrideRoom):(r.patientId?APP.pts.find(p=>p.id===r.patientId):null);
   return`<div class="overlay" id="log-overlay">
-    <div class="sheet slide-up">
+    <div class="sheet">
       <div class="row-between mb16">
         <div style="font-size:18px;font-weight:700;color:#edf6ff">Confirm Entry</div>
         <button class="btn-ghost" id="log-close" style="font-size:16px;padding:4px 10px">✕</button>
@@ -1721,12 +1721,16 @@ function attachEvents(){
   on('log-overlay','click',e=>{if(e.target.id==='log-overlay')closeLog();});
   on('log-ta','input',e=>{
     APP.logText=e.target.value;
-    // Dot-phrase detection
+    // Dot-phrase detection — update button state inline, only re-render if suggestions changed
     const{word,suggestions}=detectDotPhrase(APP.logText);
+    const prevCount=(APP.logPhraseSuggestions||[]).length;
     APP.logDotWord=word;
     APP.logPhraseSuggestions=suggestions;
-    // Only re-render the suggestion box without full render if possible
-    render();
+    // Enable/disable Process button in-place without full re-render
+    const btn=document.getElementById('log-process');
+    if(btn)btn.disabled=!APP.logText.trim();
+    // Only re-render when suggestion count changes (new suggestions appeared/disappeared)
+    if(suggestions.length!==prevCount)render();
   });
   on('toggle-edit-time','click',()=>{APP.editTime=!APP.editTime;render();});
   on('log-time-inp','change',e=>{APP.logTime=e.target.value;});
