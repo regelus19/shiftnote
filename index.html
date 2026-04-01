@@ -153,6 +153,13 @@ button{cursor:pointer;font-family:var(--f-mono);}
 .task-done{background:#060e07;border:1px solid #1a3a20;border-radius:10px;padding:9px 13px;margin-bottom:7px;display:flex;gap:10px;align-items:center;opacity:.55;}
 .task-cb-done{width:20px;height:20px;border-radius:4px;background:var(--ok);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:12px;}
 .task-text-done{flex:1;font-size:12px;color:#64748b;text-decoration:line-through;}
+.task-alarm-badge{display:inline-flex;align-items:center;gap:3px;background:#2a1e08;border:1px solid rgba(245,158,11,.4);border-radius:99px;padding:2px 8px;font-size:10px;color:var(--warn);font-family:var(--f-mono);margin-top:4px;}
+.task-alarm-badge.fired{background:#0a2010;border-color:rgba(34,197,94,.4);color:var(--ok);}
+@keyframes bellRing{0%,100%{transform:rotate(0);}20%{transform:rotate(-15deg);}40%{transform:rotate(15deg);}60%{transform:rotate(-10deg);}80%{transform:rotate(10deg);}}
+.bell-ring{display:inline-block;animation:bellRing .6s ease both;}
+.notif-banner{position:fixed;top:calc(env(safe-area-inset-top) + 60px);left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:448px;background:#0d2a1a;border:1px solid rgba(34,197,94,.5);border-radius:14px;padding:14px 16px;z-index:999;display:flex;gap:12px;align-items:flex-start;box-shadow:0 8px 32px rgba(0,0,0,.6);}
+@keyframes bannerIn{from{opacity:0;transform:translateX(-50%) translateY(-10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+.notif-banner{animation:bannerIn .25s ease both;}
 
 /* Note output */
 .note-output{background:#030710;border:1px solid var(--bd);border-radius:8px;padding:15px;font-size:12px;font-family:var(--f-mono);color:#94a3b8;white-space:pre-wrap;line-height:1.75;max-height:64vh;overflow-y:auto;}
@@ -271,6 +278,75 @@ function stripRoom(text){
 }
 
 // ═══════════════════════════════════════════════════════
+//  ALARM ENGINE
+// ═══════════════════════════════════════════════════════
+const ALARMS={};
+
+function notifSupported(){return'Notification'in window;}
+
+async function requestNotifPermission(){
+  if(!notifSupported())return false;
+  if(Notification.permission==='granted')return true;
+  if(Notification.permission==='denied')return false;
+  const r=await Notification.requestPermission();
+  return r==='granted';
+}
+
+function fmtAlarmTime(isoStr){
+  if(!isoStr)return'';
+  return new Date(isoStr).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:true});
+}
+
+function showAlarmBanner(title,body,taskId){
+  const existing=document.getElementById('alarm-banner');
+  if(existing)existing.remove();
+  const el=document.createElement('div');
+  el.id='alarm-banner';el.dataset.tid=taskId;
+  el.className='notif-banner';
+  el.innerHTML=`<div style="font-size:24px;flex-shrink:0;animation:bellRing .6s ease both">🔔</div>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700;color:#4ade80;margin-bottom:3px">${title}</div>
+      <div style="font-size:12px;color:#94a3b8;line-height:1.4">${body}</div>
+    </div>
+    <button onclick="this.closest('#alarm-banner').remove()" style="background:transparent;border:none;color:#64748b;font-size:18px;padding:0 4px;cursor:pointer;flex-shrink:0">✕</button>`;
+  document.body.appendChild(el);
+  setTimeout(()=>{const b=document.getElementById('alarm-banner');if(b&&b.dataset.tid===taskId)b.remove();},30000);
+}
+
+function fireAlarm(task,patientRoom){
+  APP.pts.forEach(p=>{const t=p.tasks.find(t=>t.id===task.id);if(t)t.alarmFired=true;});
+  delete ALARMS[task.id];
+  saveState();
+  const title=`⏰ Reminder — Room ${patientRoom||'?'}`;
+  const body=task.text;
+  if(notifSupported()&&Notification.permission==='granted'){
+    try{new Notification(title,{body,tag:task.id,requireInteraction:true,vibrate:[300,100,300]});}catch(e){}
+  }
+  showAlarmBanner(title,body,task.id);
+  render();
+}
+
+function scheduleAlarm(task,patientRoom){
+  if(!task.alarmTime)return;
+  cancelAlarm(task.id);
+  const delay=new Date(task.alarmTime)-Date.now();
+  if(delay<=0)return;
+  ALARMS[task.id]=setTimeout(()=>fireAlarm(task,patientRoom),delay);
+}
+
+function cancelAlarm(taskId){
+  if(ALARMS[taskId]){clearTimeout(ALARMS[taskId]);delete ALARMS[taskId];}
+}
+
+function rescheduleAllAlarms(){
+  APP.pts.forEach(p=>{
+    p.tasks.forEach(t=>{
+      if(t.alarmTime&&!t.done&&!t.alarmFired)scheduleAlarm(t,p.room);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════
 //  FORMATTERS & NOTE GEN
 // ═══════════════════════════════════════════════════════
 const fmt=iso=>iso?new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:true}):'';
@@ -335,7 +411,7 @@ const APP={
   // Form state
   newPtRoom:'', newPtName:'', newPtMrn:'', newPtDx:'', addingPt:false,
   search:'',
-  taskText:'', taskPrio:'normal',
+  taskText:'', taskPrio:'normal', taskAlarmTime:'',
   editTime:false,
 };
 
@@ -717,25 +793,42 @@ function buildBrain(p,bImgId,scale){
 function buildTasks(p){
   const pending=p.tasks.filter(t=>!t.done);
   const done=p.tasks.filter(t=>t.done);
+  const notifStatus=notifSupported()?Notification.permission:'unsupported';
   return`<div class="page" style="padding-bottom:80px">
+    ${notifStatus==='default'?`<div style="background:#1a1a08;border:1px solid rgba(245,158,11,.35);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center">
+      <span style="font-size:20px;flex-shrink:0">🔔</span>
+      <div style="flex:1;font-size:12px;color:#cbd5e1;line-height:1.5">Enable notifications so alarms pop up even when the app is in the background.</div>
+      <button class="btn" id="enable-notif" style="flex:none;padding:8px 12px;font-size:11px;border-radius:8px">Enable</button>
+    </div>`:''}
+    ${notifStatus==='denied'?`<div style="background:#1a1008;border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:11px;color:#fca5a5">⚠️ Notifications blocked. Alarms will still show as in-app banners. To enable phone alerts, allow notifications in your browser settings.</div>`:''}
     <div class="surf2 mb16">
       <div class="lbl">Add Task / Reminder</div>
-      <textarea class="ta mb8" id="task-input" placeholder="e.g. Follow up AM labs · Recheck K+ · Wound care at 0200" rows="2" style="min-height:52px">${esc(APP.taskText)}</textarea>
-      <div class="flex gap8 ai-c">
-        <div class="flex gap5" style="flex:1">
-          ${Object.entries(PRIOS).map(([k,v])=>`<button class="btn-ghost" data-prio="${k}" style="font-size:10px;${APP.taskPrio===k?`background:${v.color}22;border-color:${v.color};color:${v.color}`:''}">${v.label}</button>`).join('')}
+      <textarea class="ta mb8" id="task-input" placeholder="e.g. Recheck K+ after replacement · Wound care · Follow up AM labs" rows="2" style="min-height:52px">${esc(APP.taskText)}</textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div>
+          <div class="lbl" style="margin-bottom:4px">Priority</div>
+          <div class="flex gap5">
+            ${Object.entries(PRIOS).map(([k,v])=>`<button class="btn-ghost" data-prio="${k}" style="font-size:10px;flex:1;${APP.taskPrio===k?`background:${v.color}22;border-color:${v.color};color:${v.color}`:''}">${v.label}</button>`).join('')}
+          </div>
         </div>
-        <button class="btn" id="task-add" style="flex:none;padding:9px 16px;font-size:12px">＋</button>
+        <div>
+          <div class="lbl" style="margin-bottom:4px">🔔 Alarm Time</div>
+          <input type="time" class="inp" id="task-alarm-inp" value="${esc(APP.taskAlarmTime)}" style="font-size:13px;padding:8px 10px"/>
+        </div>
       </div>
+      <button class="btn" id="task-add" style="padding:11px 16px;font-size:13px">＋ Add Task</button>
     </div>
     ${pending.length?`<div class="section-lbl">PENDING (${pending.length})</div>${pending.map(t=>buildTaskRow(p.id,t,false)).join('')}`:``}
     ${done.length?`<div class="section-lbl" style="margin-top:16px;color:var(--ok)">COMPLETED (${done.length})</div>${done.map(t=>buildTaskRow(p.id,t,true)).join('')}`:''}
-    ${!p.tasks.length?`<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No tasks yet</div></div>`:''}
+    ${!p.tasks.length?`<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No tasks yet</div><div class="empty-body">Add a task above with an optional alarm time<br>and it'll buzz your phone when it's due.</div></div>`:''}
   </div>`;
 }
 
 function buildTaskRow(pid,t,done){
   const pr=PRIOS[t.prio]||PRIOS.normal;
+  const alarmBadge=t.alarmTime&&!done?`<div class="task-alarm-badge${t.alarmFired?' fired':''}">
+    ${t.alarmFired?'✓':'🔔'} ${fmtAlarmTime(t.alarmTime)}${t.alarmFired?' · Done':''}
+  </div>`:'';
   if(done)return`<div class="task-done">
     <div class="task-cb-done" data-toggle="${t.id}" data-pid="${pid}" style="cursor:pointer">✓</div>
     <div class="task-text-done">${esc(t.text)}</div>
@@ -745,7 +838,10 @@ function buildTaskRow(pid,t,done){
     <div class="task-cb" data-toggle="${t.id}" data-pid="${pid}" style="border-color:${pr.color};cursor:pointer"></div>
     <div style="flex:1">
       <div style="font-size:13px;color:var(--tx);line-height:1.5">${esc(t.text)}</div>
-      <div style="font-size:10px;color:${pr.color};margin-top:2px;font-family:var(--f-mono)">${pr.label.toUpperCase()}</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap">
+        <div style="font-size:10px;color:${pr.color};font-family:var(--f-mono)">${pr.label.toUpperCase()}</div>
+        ${alarmBadge}
+      </div>
     </div>
     <button class="btn-danger" data-deltask="${t.id}" data-pid="${pid}">✕</button>
   </div>`;
@@ -983,28 +1079,46 @@ function attachEvents(){
 
   // Tasks
   on('task-input','input',e=>{APP.taskText=e.target.value;});
+  on('task-alarm-inp','change',e=>{APP.taskAlarmTime=e.target.value;});
+  on('enable-notif','click',async()=>{await requestNotifPermission();render();});
   document.querySelectorAll('[data-prio]').forEach(el=>{
     el.addEventListener('click',()=>{APP.taskPrio=el.dataset.prio;render();});
   });
-  on('task-add','click',()=>{
+  on('task-add','click',async()=>{
     if(!APP.taskText.trim())return;
     const p=pt();if(!p)return;
-    p.tasks.push({id:uid(),text:APP.taskText.trim(),prio:APP.taskPrio,done:false});
-    APP.taskText='';render();
+    // Build alarm ISO time if provided
+    let alarmTime=null;
+    if(APP.taskAlarmTime){
+      const[h,m]=APP.taskAlarmTime.split(':');
+      const d=new Date();d.setSeconds(0,0);
+      d.setHours(parseInt(h),parseInt(m));
+      // If time is in the past, push to next occurrence (next day for night shift)
+      if(d<=new Date())d.setDate(d.getDate()+1);
+      alarmTime=d.toISOString();
+    }
+    // Request permission if alarm set and not yet granted
+    if(alarmTime&&Notification.permission==='default')await requestNotifPermission();
+    const task={id:uid(),text:APP.taskText.trim(),prio:APP.taskPrio,done:false,alarmTime,alarmFired:false};
+    p.tasks.push(task);
+    if(alarmTime)scheduleAlarm(task,p.room);
+    APP.taskText='';APP.taskAlarmTime='';render();
   });
   document.querySelectorAll('[data-toggle]').forEach(el=>{
     el.addEventListener('click',e=>{
       e.stopPropagation();
       const p=APP.pts.find(p=>p.id===el.dataset.pid);
       const t=p?.tasks.find(t=>t.id===el.dataset.toggle);
-      if(t)t.done=!t.done;render();
+      if(t){t.done=!t.done;if(t.done)cancelAlarm(t.id);}
+      render();
     });
   });
   document.querySelectorAll('[data-deltask]').forEach(el=>{
     el.addEventListener('click',e=>{
       e.stopPropagation();
       const p=APP.pts.find(p=>p.id===el.dataset.pid);
-      if(p)p.tasks=p.tasks.filter(t=>t.id!==el.dataset.deltask);render();
+      if(p){cancelAlarm(el.dataset.deltask);p.tasks=p.tasks.filter(t=>t.id!==el.dataset.deltask);}
+      render();
     });
   });
 
@@ -1105,6 +1219,7 @@ function commitLog(){
 // ═══════════════════════════════════════════════════════
 //  BOOT
 // ═══════════════════════════════════════════════════════
+rescheduleAllAlarms();
 render();
 </script>
 </body>
