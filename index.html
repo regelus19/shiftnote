@@ -161,7 +161,18 @@ button{cursor:pointer;font-family:var(--f-mono);}
 @keyframes bannerIn{from{opacity:0;transform:translateX(-50%) translateY(-10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
 .notif-banner{animation:bannerIn .25s ease both;}
 
-/* Note output */
+/* SmartPhrases */
+.phrase-trigger{font-family:var(--f-mono);font-size:11px;color:var(--ac);background:#0c2a28;border:1px solid var(--ac2);border-radius:6px;padding:2px 8px;display:inline-block;}
+.phrase-row{background:var(--surf2);border:1px solid var(--bd);border-radius:10px;padding:11px 13px;margin-bottom:8px;cursor:pointer;transition:border-color .15s;}
+.phrase-row:active{border-color:var(--ac);}
+.phrase-label{font-size:13px;color:var(--tx);font-weight:600;margin-bottom:4px;}
+.phrase-preview{font-size:11px;color:var(--mu);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.phrase-suggestion-box{background:#0d1e30;border:1px solid var(--ac);border-radius:10px;margin-bottom:10px;overflow:hidden;max-height:200px;overflow-y:auto;}
+.phrase-suggestion-item{padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;gap:10px;align-items:center;}
+.phrase-suggestion-item:last-child{border-bottom:none;}
+.phrase-suggestion-item:active{background:var(--ac2);}
+.dot-highlight{color:var(--ac);font-weight:700;font-family:var(--f-mono);}
+.bracket{color:var(--warn);font-weight:700;}
 .note-output{background:#030710;border:1px solid var(--bd);border-radius:8px;padding:15px;font-size:12px;font-family:var(--f-mono);color:#94a3b8;white-space:pre-wrap;line-height:1.75;max-height:64vh;overflow-y:auto;}
 
 /* Helpers */
@@ -220,6 +231,75 @@ const PRIOS={urgent:{color:'#f87171',label:'Urgent'},normal:{color:'#38bdf8',lab
 // ═══════════════════════════════════════════════════════
 //  CLASSIFIER
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+//  SMART PHRASES  (Epic-style dot phrases)
+// ═══════════════════════════════════════════════════════
+const DEFAULT_PHRASES=[
+  // ── Assessment ──────────────────────────────────────
+  {id:'dp001',trigger:'.vsok',label:'Vital Signs Stable',category:'assessment',
+   text:'Vital signs stable. HR [RATE] bpm [RHYTHM], BP [SBP]/[DBP] mmHg, MAP [MAP] mmHg, SpO2 [%]% on [O2 DEVICE], RR [RATE] breaths/min, Temp [TEMP]°F. No acute hemodynamic changes.'},
+  {id:'dp002',trigger:'.a',label:'Full Shift Assessment',category:'assessment',
+   text:'Patient alert and oriented x[1-4]. General appearance: [NAD / acute distress]. Skin warm and dry, color appropriate. Mucous membranes moist. Capillary refill < 2 seconds. Full head-to-toe assessment completed. Patient tolerated without complaint.'},
+  // ── Neuro ────────────────────────────────────────────
+  {id:'dp003',trigger:'.neuro',label:'Neuro Assessment',category:'neuro',
+   text:'Neurologically intact. GCS [SCORE]. Alert and oriented x[1-4]. PERRL at [MM] mm, brisk. No focal deficits noted. RASS [SCORE]. Moving all extremities purposefully. MAE with equal strength bilaterally.'},
+  {id:'dp004',trigger:'.rass',label:'RASS / Sedation',category:'neuro',
+   text:'RASS [SCORE] — [DESCRIPTION]. CAM-ICU [POSITIVE/NEGATIVE]. Dexmedetomidine [DOSE] mcg/kg/hr infusing. Patient [comfortable / arousable to voice / requiring reorientation]. Goal RASS [TARGET].'},
+  // ── Cardiac / Hemodynamics ───────────────────────────
+  {id:'dp005',trigger:'.hemo',label:'Hemodynamic Assessment',category:'cardiac',
+   text:'Hemodynamically [stable / labile]. HR [RATE] [RHYTHM]. BP [SBP]/[DBP], MAP [MAP]. CVP [VALUE]. PA pressures [SBP]/[DBP] ([MEAN]). PCWP [VALUE]. CO/CI [VALUE]/[VALUE]. SVR [VALUE]. Vasoactive support as below.'},
+  {id:'dp006',trigger:'.drip',label:'Vasoactive Drip Note',category:'cardiac',
+   text:'[DRIP NAME] infusing at [DOSE] [mcg/kg/min / units/min / mcg/min] via [LINE]. Titrated [up/down] per protocol for MAP goal > [TARGET] mmHg. Patient [responding / not responding] to current dose. MD aware.'},
+  {id:'dp007',trigger:'.postop',label:'Post-Op Cardiac Note',category:'cardiac',
+   text:'POD [#] s/p [PROCEDURE]. Hemodynamically stable. Chest tubes [intact / removed — output [AMOUNT] mL]. Pacing wires [in place / removed] — [pacing / sensing / not in use]. Mediastinal/pleural drainage [AMOUNT] mL this shift, [COLOR] in color. Sternal incision [intact / open / healing].'},
+  {id:'dp008',trigger:'.afib',label:'New Onset AFib',category:'cardiac',
+   text:'Patient noted to be in atrial fibrillation with [CONTROLLED / UNCONTROLLED] ventricular response at [RATE] bpm. 12-lead EKG obtained and placed in chart. Dr. [NAME] notified at [TIME] — new orders received. [AMIODARONE / METOPROLOL / CARDIOVERSION] initiated per order. Patient [hemodynamically stable / unstable]. Continuous telemetry monitoring ongoing.'},
+  // ── Respiratory ──────────────────────────────────────
+  {id:'dp009',trigger:'.resp',label:'Respiratory Assessment',category:'resp',
+   text:'Breath sounds [clear / diminished at bases / wheezes / crackles] bilaterally. SpO2 [%]% on [O2 DEVICE] at [FLOW]. RR [RATE], non-labored. No accessory muscle use. Patient [denies / reports] shortness of breath.'},
+  {id:'dp010',trigger:'.vent',label:'Vent Settings',category:'resp',
+   text:'Patient on mechanical ventilation. Mode: [AC/VC / SIMV / CPAP/PS]. TV [VOLUME] mL, RR [RATE], PEEP [LEVEL] cmH₂O, FiO₂ [%]%. Peak pressure [VALUE], plateau pressure [VALUE]. SpO2 [%]%, current ABG pending / resulted as pH [VALUE], PaCO₂ [VALUE], PaO₂ [VALUE], HCO₃ [VALUE], Base excess [VALUE].'},
+  {id:'dp011',trigger:'.extub',label:'Extubation Note',category:'procedure',
+   text:'Patient extubated at [TIME] per physician order. Pre-extubation SpO2 [%]% on FiO₂ [%]%. Cuff leak test [positive/negative]. Post-extubation: SpO2 [%]% on [O2 DEVICE], RR [RATE], voice [present/hoarse]. Patient tolerated extubation without distress. Dr. [NAME] notified of post-extubation status.'},
+  // ── GI / GU ─────────────────────────────────────────
+  {id:'dp012',trigger:'.uo',label:'Urine Output Note',category:'gi_gu',
+   text:'Urine output [AMOUNT] mL this hour via [foley / condom catheter / spontaneous void], [COLOR] in color, [clear/cloudy]. Total urine output this shift: [TOTAL] mL. Fluid balance: [POSITIVE/NEGATIVE] [AMOUNT] mL. [No intervention needed / Lasix given / MD notified per protocol].'},
+  {id:'dp013',trigger:'.gigu',label:'GI/GU Assessment',category:'gi_gu',
+   text:'Abdomen soft, non-distended, non-tender. Bowel sounds [present / hypoactive / absent] in all quadrants. Last BM [DATE/TIME / unknown]. Foley catheter draining [clear/yellow/amber] urine without clots. No complaints of nausea or vomiting. Diet: [NPO / clear liquids / regular / tube feeding at [RATE] mL/hr].'},
+  // ── Lab / Critical Values ────────────────────────────
+  {id:'dp014',trigger:'.labcrit',label:'Critical Lab Notification',category:'lab',
+   text:'Critical lab value — [LAB NAME] [VALUE] (normal [RANGE]) resulted at [TIME]. Dr. [NAME] notified at [TIME]. Verbal read-back confirmed. New order: [ORDER]. [INTERVENTION] initiated. Repeat lab ordered for [TIME]. Patient tolerating without [symptoms / acute hemodynamic change].'},
+  {id:'dp015',trigger:'.abg',label:'ABG Result',category:'lab',
+   text:'ABG resulted: pH [VALUE], PaCO₂ [VALUE] mmHg, PaO₂ [VALUE] mmHg, HCO₃ [VALUE] mEq/L, Base excess [VALUE], SpO₂ [%]% on FiO₂ [%]%. Interpretation: [respiratory/metabolic] [acidosis/alkalosis / compensated / uncompensated]. Dr. [NAME] notified. [Ventilator settings adjusted / No change ordered].'},
+  // ── Medication ───────────────────────────────────────
+  {id:'dp016',trigger:'.givenprn',label:'PRN Medication Given',category:'medication',
+   text:'[MEDICATION] [DOSE] mg [IV / PO / SQ] administered at [TIME] for [INDICATION] per order. Pre-administration [VITAL/ASSESSMENT]: [VALUE]. Post-administration reassessment at [TIME]: patient reports [RESPONSE]. No adverse effects observed.'},
+  {id:'dp017',trigger:'.transfuse',label:'Blood Transfusion',category:'medication',
+   text:'[PRBC / FFP / Platelets / Cryo] — [AMOUNT] unit(s) transfusion initiated at [TIME] via [LINE]. Pre-transfusion VS: HR [RATE], BP [SBP]/[DBP], Temp [TEMP]°F, SpO2 [%]%. Patient confirmed. Type and screen verified with [RN NAME]. Consent obtained. Monitoring per protocol. No transfusion reaction noted at [15-MIN CHECK TIME].'},
+  // ── Lines / Tubes ────────────────────────────────────
+  {id:'dp018',trigger:'.linecheck',label:'Lines & Tubes Assessment',category:'lines_tubes',
+   text:'All vascular access sites assessed. [LINE TYPE] in [LOCATION], day [#], site without redness, warmth, swelling, or drainage. Dressing [intact / changed] — [DRESSING TYPE]. Blood return confirmed, patent. Cap and needleless connector changed per protocol. Arterial line waveform adequate, zeroed to phlebostatic axis.'},
+  {id:'dp019',trigger:'.dresschg',label:'Dressing Change',category:'lines_tubes',
+   text:'[SITE] dressing changed at [TIME] using sterile technique. Site assessed: [intact / mildly erythematous / healing] without signs of infection. [DRESSING TYPE] applied. Patient tolerated procedure without complaint. Next dressing change due [DATE/TIME].'},
+  // ── Provider Notification ────────────────────────────
+  {id:'dp020',trigger:'.notified',label:'Provider Notification',category:'physician',
+   text:'Dr. [NAME] notified at [TIME] regarding [CONCERN / CHANGE IN CONDITION]. Patient situation: [SITUATION]. Background: [BACKGROUND]. Current assessment: [ASSESSMENT]. Read-back of orders confirmed. Plan: [PLAN/ORDERS]. Will continue to monitor and notify if condition changes.'},
+  {id:'dp021',trigger:'.sbar',label:'SBAR Call to MD',category:'physician',
+   text:'SBAR — Called Dr. [NAME] at [TIME].\nS: [PATIENT], Room [ROOM], [DX]. Calling regarding [CONCERN].\nB: Admitted [DATE] for [REASON]. Relevant hx: [PMH].\nA: Currently [ASSESSMENT/VS/CHANGE].\nR: Requesting [ORDER/ASSESSMENT/GUIDANCE].\nOrders received: [ORDERS]. Read-back confirmed.'},
+  // ── Pain / Comfort ───────────────────────────────────
+  {id:'dp022',trigger:'.pain',label:'Pain Assessment',category:'pain',
+   text:'Patient rates pain [SCORE]/10, [LOCATION], described as [QUALITY]. Analgesic administered: [MED] [DOSE] [ROUTE] at [TIME]. Non-pharmacological measures: [repositioning / ice / heat / distraction] applied. Reassessment at [TIME]: pain [SCORE]/10, patient reports [RESPONSE]. [Acceptable / Further intervention needed].'},
+  // ── Education ────────────────────────────────────────
+  {id:'dp023',trigger:'.educ',label:'Patient Education',category:'education',
+   text:'Education provided to [patient / family / patient and family] regarding [TOPIC]. Teaching method: [verbal / written materials / demonstration]. Patient verbalized understanding and ability to return demonstrate [YES / NO]. Barriers to learning: [none / language / pain / anxiety / altered LOC]. Written materials provided in [LANGUAGE].'},
+  // ── Transfer / Handoff ───────────────────────────────
+  {id:'dp024',trigger:'.report',label:'Shift Report / Handoff',category:'transfer',
+   text:'End-of-shift report given to [RN NAME] at [TIME]. Patient condition [stable / improving / declining]. All pending orders communicated. Outstanding labs: [LABS]. Upcoming procedures: [PROCEDURES]. Safety concerns discussed. Medications reconciled. Family updated: [YES/NO]. No outstanding issues at time of sign-out.'},
+  // ── Fall / Safety ────────────────────────────────────
+  {id:'dp025',trigger:'.safety',label:'Safety Bundle',category:'fall_safety',
+   text:'Morse Fall Risk Score: [SCORE] — [LOW / MODERATE / HIGH] risk. Bed in lowest position, brakes locked. Bed alarm [active]. Call light within reach. Non-skid footwear in place. Side rails [up x 2 / 3]. Patient and family educated on call light use and fall prevention. Environment clear of hazards.'},
+];
+
 const KW={
   cardiac:['bp','blood pressure','map','mean arterial','heart rate','hr','pulse','rhythm','sinus','afib','atrial fib','tachycardia','bradycardia','svt','vt','vtach','vfib','pac','pvc','systolic','diastolic','hypertension','hypotension','ci','cardiac index','cardiac output','svr','pvr','cvp','wedge','pcwp','pa pressure','pulmonary artery','swan','hemodynamic','vasopressin','norepinephrine','dopamine','dobutamine','milrinone','epinephrine','levophed','neosynephrine','phenylephrine','drip','infusion','titrated','vasopressor','inotrope','ecg','ekg','12 lead','telemetry','arrhythmia','pacemaker','iabp','impella','lvad','ejection fraction','troponin','bnp','nt-probnp','stemi','nstemi','acs','angina','edema','jvd','murmur'],
   resp:['spo2','o2 sat','oxygen saturation','respiratory rate','rr','breath sounds','lung','lungs','ventilator','vent','intubated','intubation','extubated','extubation','cpap','bipap','niv','nasal cannula','face mask','non-rebreather','high flow','optiflow','tidal volume','peep','fio2','pip','wheeze','crackle','rales','rhonchi','diminished','pneumonia','pneumothorax','atelectasis','effusion','cxr','bronchospasm','nebulizer','albuterol','suction','secretions','dyspnea','shortness of breath','sob','apnea','hypoxia'],
@@ -347,6 +427,37 @@ function rescheduleAllAlarms(){
 }
 
 // ═══════════════════════════════════════════════════════
+//  SMART PHRASE HELPERS
+// ═══════════════════════════════════════════════════════
+const allPhrases=()=>[...DEFAULT_PHRASES,...(APP.customPhrases||[])];
+
+function detectDotPhrase(text){
+  // Find last word that starts with a dot
+  const m=text.match(/\.([a-zA-Z]*)$/);
+  if(!m)return{word:'',suggestions:[]};
+  const word='.'+m[1].toLowerCase();
+  if(word.length<2)return{word,suggestions:[]};
+  const suggestions=allPhrases().filter(p=>p.trigger.startsWith(word)).slice(0,5);
+  return{word,suggestions};
+}
+
+function insertPhrase(phrase){
+  // Replace the dot-word in logText with the phrase text
+  const dotWord=APP.logDotWord;
+  if(dotWord&&APP.logText.endsWith(dotWord)){
+    APP.logText=APP.logText.slice(0,-dotWord.length)+phrase.text;
+  } else {
+    APP.logText=(APP.logText?APP.logText+'\n':'')+phrase.text;
+  }
+  APP.logPhraseSuggestions=[];APP.logDotWord='';APP.phraseOpen=false;
+  // Auto-set category override
+  APP.logOverrideCat=null;
+  render();
+  // Focus textarea
+  setTimeout(()=>{const ta=document.getElementById('log-ta');if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);}},50);
+}
+
+// ═══════════════════════════════════════════════════════
 //  FORMATTERS & NOTE GEN
 // ═══════════════════════════════════════════════════════
 const fmt=iso=>iso?new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:true}):'';
@@ -388,8 +499,8 @@ function loadState(){
 }
 function saveState(){
   try{
-    const{screen,nurse,pts,activeId,tab}=APP;
-    localStorage.setItem('sn_state',JSON.stringify({nurse,pts,activeId,tab,screen:screen==='note'?'chart':screen}));
+    const{screen,nurse,pts,activeId,tab,customPhrases}=APP;
+    localStorage.setItem('sn_state',JSON.stringify({nurse,pts,activeId,tab,customPhrases,screen:screen==='note'?'chart':screen}));
   }catch(e){}
 }
 
@@ -412,6 +523,11 @@ const APP={
   newPtRoom:'', newPtName:'', newPtMrn:'', newPtDx:'', addingPt:false,
   search:'',
   taskText:'', taskPrio:'normal', taskAlarmTime:'',
+  // SmartPhrases
+  customPhrases: saved?.customPhrases||[],
+  phraseOpen:false, phraseSearch:'', phraseManagerOpen:false,
+  newPhraseTrigger:'', newPhraseLabel:'', newPhraseText:'', newPhraseCat:'assessment',
+  logPhraseSuggestions:[], logDotWord:'',
   editTime:false,
 };
 
@@ -649,7 +765,10 @@ function buildBoard(){
     ${filtered.map(p=>buildPtCard(p)).join('')}
     ${buildAddPt()}
     <div class="divider"></div>
-    <button class="btn-sec w100" id="go-setup" style="color:#2a3e55;font-size:12px">⚙ Edit Shift Info</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn-sec w100" id="go-setup" style="color:#2a3e55;font-size:12px;flex:1">⚙ Edit Shift Info</button>
+      <button class="btn-sec" id="board-open-phrases" style="font-size:12px;color:var(--ac);flex:none;padding:10px 14px">📝 Phrases</button>
+    </div>
   </div>`;
 }
 
@@ -865,10 +984,28 @@ function buildLogModal(){
   const capTime=APP.logCapTime?new Date(APP.logCapTime):new Date();
   const dTime=capTime.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:true});
   if(APP.logResult){return buildLogPreview(dTime);}
+
+  // Dot-phrase suggestions
+  const suggBox=APP.logPhraseSuggestions.length?`
+    <div class="phrase-suggestion-box mb8">
+      <div style="padding:6px 12px;font-size:10px;color:var(--ac);font-family:var(--f-mono);letter-spacing:.15em;border-bottom:1px solid var(--bd)">
+        SMARTPHRASE MATCH — TAP TO INSERT
+      </div>
+      ${APP.logPhraseSuggestions.map(ph=>`
+        <div class="phrase-suggestion-item" data-insert-phrase="${ph.id}">
+          <span class="phrase-trigger">${esc(ph.trigger)}</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600;color:var(--tx)">${esc(ph.label)}</div>
+            <div style="font-size:10px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${esc(ph.text.substring(0,80))}…</div>
+          </div>
+        </div>`).join('')}
+    </div>`:'';
+
   const voiceBox=`<div class="log-voice-box${APP.logRec?' recording':''}" id="log-voice-box">
-    <textarea class="log-ta" id="log-ta" placeholder="Speak or type…&#10;&#10;&quot;Room 12, K+ 3.1 critical, Dr. Cruz notified at 0320, 40 meq KCl running&quot;&#10;&quot;5B vasopressin up to 0.06, MAP trending up&quot;">${esc(APP.logText)}${APP.logInterim?(' '+APP.logInterim+'…'):''}</textarea>
+    <textarea class="log-ta" id="log-ta" placeholder="Speak or type…&#10;Type . to see SmartPhrases  e.g.  .vitals  .notified  .drip&#10;&#10;&quot;Room 12, K+ 3.1 critical, Dr. Cruz notified at 0320&quot;">${esc(APP.logText)}${APP.logInterim?(' '+APP.logInterim+'…'):''}</textarea>
     <div id="rec-live-dot" class="rec-indicator" style="display:${APP.logRec?'flex':'none'}"><div class="rec-dot blink"></div><span style="font-family:var(--f-mono);font-size:10px;color:var(--red);letter-spacing:.12em">LIVE</span></div>
   </div>`;
+
   return`<div class="overlay" id="log-overlay">
     <div class="sheet slide-up">
       <div class="row-between mb16">
@@ -884,18 +1021,113 @@ function buildLogModal(){
         <button class="btn-ghost" id="log-close" style="font-size:16px;padding:4px 10px">✕</button>
       </div>
       ${voiceBox}
-      <div id="rec-live-status" style="font-size:11px;color:var(--red);margin-bottom:10px;display:${APP.logRec?'flex':'none'};gap:6px;align-items:center;font-family:var(--f-mono)"><div class="rec-dot blink"></div> LISTENING — tap ⬛ to stop</div>
-      <button class="mic-btn${APP.logRec?' active':''}" id="mic-toggle">
-        <span class="mic-icon" id="mic-icon">${APP.logRec?'⬛':'🎙'}</span>
-        <div class="mic-label">
-          <strong id="mic-label-main">${APP.logRec?'Tap to Stop':'Tap to Speak'}</strong>
-          <small id="mic-label-sub">${APP.logRec?'Recording in progress…':'Mic off — tap to start'}</small>
-        </div>
-      </button>
-      <button class="btn mb12" id="log-process" ${!APP.logText.trim()?'disabled':''} style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;padding:15px;border-radius:14px">
+      ${suggBox}
+      <div id="rec-live-status" style="font-size:11px;color:var(--red);margin-bottom:8px;display:${APP.logRec?'flex':'none'};gap:6px;align-items:center;font-family:var(--f-mono)"><div class="rec-dot blink"></div> LISTENING — tap ⬛ to stop</div>
+      <div class="flex gap8 mb10">
+        <button class="mic-btn${APP.logRec?' active':''}" id="mic-toggle" style="flex:1;margin-bottom:0">
+          <span class="mic-icon">${APP.logRec?'⬛':'🎙'}</span>
+          <div class="mic-label">
+            <strong>${APP.logRec?'Tap to Stop':'Tap to Speak'}</strong>
+            <small>${APP.logRec?'Recording…':'Mic off'}</small>
+          </div>
+        </button>
+        <button id="open-phrase-picker" style="flex:none;width:64px;border-radius:14px;border:2px solid var(--bd);background:var(--surf2);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
+          <span style="font-size:20px">📝</span>
+          <span style="font-size:9px;font-family:var(--f-mono);color:var(--ac)">.phrase</span>
+        </button>
+      </div>
+      <button class="btn mb10" id="log-process" ${!APP.logText.trim()?'disabled':''} style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;padding:15px;border-radius:14px">
         <span style="font-size:18px">✦</span> Process &amp; Classify
       </button>
-      <p style="font-size:11px;color:var(--mu);text-align:center;font-family:var(--f-mono)">Include room in speech · "Room 5…" · "Rm 12…" · "Bed 7…"<br><span style="color:#2a3e55">Or use your keyboard's 🎙 mic key to dictate</span></p>
+      <p style="font-size:11px;color:var(--mu);text-align:center;font-family:var(--f-mono)">Include room · "Room 5…" · "Rm 12…" · "Bed 7…"<br><span style="color:#2a3e55">Type a dot to trigger SmartPhrases e.g. <span style="color:var(--ac)">.vitals</span></span></p>
+    </div>
+  </div>
+  ${buildPhrasePicker()}
+  ${buildPhraseManager()}`;
+}
+
+function buildPhrasePicker(){
+  if(!APP.phraseOpen)return'';
+  const q=APP.phraseSearch.toLowerCase();
+  const phrases=allPhrases().filter(p=>!q||p.label.toLowerCase().includes(q)||p.trigger.includes(q)||p.text.toLowerCase().includes(q));
+  // Group by category
+  const byCat={};
+  phrases.forEach(p=>{(byCat[p.category]=byCat[p.category]||[]).push(p);});
+  return`<div class="overlay" id="phrase-overlay" style="z-index:300">
+    <div class="sheet slide-up" style="max-height:96vh">
+      <div class="row-between" style="margin-bottom:12px">
+        <div>
+          <div style="font-size:17px;font-weight:700;color:#edf6ff">📝 SmartPhrases</div>
+          <div style="font-size:11px;color:var(--mu);margin-top:2px;font-family:var(--f-mono)">Tap to insert · Type . in log to auto-suggest</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-ghost" id="open-phrase-manager" style="font-size:11px;color:var(--ac)">＋ Custom</button>
+          <button class="btn-ghost" id="close-phrase-picker" style="font-size:16px;padding:4px 10px">✕</button>
+        </div>
+      </div>
+      <input class="inp mb12" id="phrase-search" placeholder="Search phrases…" value="${esc(APP.phraseSearch)}" style="font-size:13px"/>
+      ${Object.entries(byCat).map(([catId,ps])=>{
+        const cat=CMAP[catId]||CMAP['other'];
+        return`<div style="margin-bottom:14px">
+          <div style="font-size:10px;letter-spacing:.18em;color:${cat.color};font-family:var(--f-mono);font-weight:700;margin-bottom:6px">${cat.icon} ${cat.label.toUpperCase()}</div>
+          ${ps.map(ph=>`<div class="phrase-row" data-insert-phrase="${ph.id}">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+              <span class="phrase-trigger">${esc(ph.trigger)}</span>
+              <span class="phrase-label" style="font-size:12px">${esc(ph.label)}</span>
+              ${ph.id.startsWith('dp')?'':`<span style="font-size:9px;color:var(--warn);font-family:var(--f-mono)">CUSTOM</span>`}
+            </div>
+            <div class="phrase-preview">${esc(ph.text)}</div>
+          </div>`).join('')}
+        </div>`;
+      }).join('')}
+      ${!phrases.length?`<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">No phrases found</div><div class="empty-body">Try a different search or add a custom phrase</div></div>`:''}
+    </div>
+  </div>`;
+}
+
+function buildPhraseManager(){
+  if(!APP.phraseManagerOpen)return'';
+  const custom=APP.customPhrases||[];
+  return`<div class="overlay" id="phrase-manager-overlay" style="z-index:400">
+    <div class="sheet slide-up">
+      <div class="row-between mb14">
+        <div style="font-size:17px;font-weight:700;color:#edf6ff">Custom Phrases</div>
+        <button class="btn-ghost" id="close-phrase-manager" style="font-size:16px;padding:4px 10px">✕</button>
+      </div>
+      <!-- New phrase form -->
+      <div class="surf2 mb16">
+        <div class="lbl" style="margin-bottom:10px">Create New Phrase</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <div class="lbl" style="margin-bottom:4px">Trigger</div>
+            <input class="inp" id="new-phrase-trigger" placeholder=".myphrase" value="${esc(APP.newPhraseTrigger)}" style="font-size:13px"/>
+          </div>
+          <div>
+            <div class="lbl" style="margin-bottom:4px">Category</div>
+            <select class="sel" id="new-phrase-cat" style="font-size:12px;padding:9px 10px">
+              ${CATS.map(c=>`<option value="${c.id}"${APP.newPhraseCat===c.id?' selected':''}>${c.icon} ${c.label}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="lbl" style="margin-bottom:4px">Label</div>
+        <input class="inp mb8" id="new-phrase-label" placeholder="e.g. My Cardiac Note" value="${esc(APP.newPhraseLabel)}" style="font-size:13px"/>
+        <div class="lbl" style="margin-bottom:4px">Phrase Text <span style="color:var(--warn);font-size:10px">(use [BRACKETS] for fill-ins)</span></div>
+        <textarea class="ta mb10" id="new-phrase-text" rows="4" placeholder="e.g. Patient hemodynamically stable. HR [RATE] SR, BP [SBP]/[DBP], MAP [MAP]. No vasopressor support required.">${esc(APP.newPhraseText)}</textarea>
+        <button class="btn" id="save-custom-phrase" style="padding:11px;font-size:13px">Save Custom Phrase</button>
+      </div>
+      <!-- Existing custom phrases -->
+      ${custom.length?`<div class="lbl mb8">Your Phrases (${custom.length})</div>`:''}
+      ${custom.map(ph=>`<div class="phrase-row" style="cursor:default;display:flex;gap:10px;align-items:flex-start">
+        <div style="flex:1">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+            <span class="phrase-trigger">${esc(ph.trigger)}</span>
+            <span style="font-size:12px;font-weight:600;color:var(--tx)">${esc(ph.label)}</span>
+          </div>
+          <div class="phrase-preview">${esc(ph.text)}</div>
+        </div>
+        <button class="btn-danger" data-del-phrase="${ph.id}" style="flex-shrink:0;margin-top:2px">✕</button>
+      </div>`).join('')}
+      ${!custom.length?`<div style="text-align:center;padding:20px;color:var(--mu);font-size:12px">No custom phrases yet. Create one above.</div>`:''}
     </div>
   </div>`;
 }
@@ -1125,7 +1357,15 @@ function attachEvents(){
   // Log Now modal
   on('log-close','click',closeLog);
   on('log-overlay','click',e=>{if(e.target.id==='log-overlay')closeLog();});
-  on('log-ta','input',e=>{APP.logText=e.target.value;});
+  on('log-ta','input',e=>{
+    APP.logText=e.target.value;
+    // Dot-phrase detection
+    const{word,suggestions}=detectDotPhrase(APP.logText);
+    APP.logDotWord=word;
+    APP.logPhraseSuggestions=suggestions;
+    // Only re-render the suggestion box without full render if possible
+    render();
+  });
   on('toggle-edit-time','click',()=>{APP.editTime=!APP.editTime;render();});
   on('log-time-inp','change',e=>{APP.logTime=e.target.value;});
   on('mic-toggle','click',()=>{APP.logRec?REC.stop():REC.start();});
@@ -1141,6 +1381,43 @@ function attachEvents(){
   });
   document.querySelectorAll('[data-pickroom]').forEach(el=>{
     el.addEventListener('click',()=>{APP.logOverrideRoom=el.dataset.pickroom;APP.logShowRoom=false;render();});
+  });
+
+  // SmartPhrases
+  on('open-phrase-picker','click',()=>{APP.phraseOpen=true;APP.phraseSearch='';render();});
+  on('board-open-phrases','click',()=>{APP.phraseOpen=true;APP.phraseSearch='';APP.logOpen=true;APP.logCapTime=new Date().toISOString();APP.logText='';APP.logInterim='';APP.logResult=null;APP.logPhraseSuggestions=[];render();});
+  on('close-phrase-picker','click',()=>{APP.phraseOpen=false;render();});
+  on('phrase-overlay','click',e=>{if(e.target.id==='phrase-overlay'){APP.phraseOpen=false;render();}});
+  on('phrase-search','input',e=>{APP.phraseSearch=e.target.value;render();});
+  on('open-phrase-manager','click',()=>{APP.phraseManagerOpen=true;render();});
+  on('close-phrase-manager','click',()=>{APP.phraseManagerOpen=false;render();});
+  on('phrase-manager-overlay','click',e=>{if(e.target.id==='phrase-manager-overlay'){APP.phraseManagerOpen=false;render();}});
+  on('new-phrase-trigger','input',e=>{APP.newPhraseTrigger=e.target.value;});
+  on('new-phrase-label','input',e=>{APP.newPhraseLabel=e.target.value;});
+  on('new-phrase-text','input',e=>{APP.newPhraseText=e.target.value;});
+  on('new-phrase-cat','change',e=>{APP.newPhraseCat=e.target.value;});
+  on('save-custom-phrase','click',()=>{
+    let trigger=APP.newPhraseTrigger.trim();
+    if(!trigger||!APP.newPhraseText.trim())return;
+    if(!trigger.startsWith('.'))trigger='.'+trigger;
+    APP.customPhrases=[...(APP.customPhrases||[]),{id:uid(),trigger:trigger.toLowerCase(),label:APP.newPhraseLabel||trigger,category:APP.newPhraseCat,text:APP.newPhraseText.trim()}];
+    APP.newPhraseTrigger='';APP.newPhraseLabel='';APP.newPhraseText='';APP.newPhraseCat='assessment';
+    render();
+  });
+  document.querySelectorAll('[data-del-phrase]').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      APP.customPhrases=(APP.customPhrases||[]).filter(p=>p.id!==el.dataset.delPhrase);
+      render();
+    });
+  });
+  // Insert phrase (from picker or inline suggestions)
+  document.querySelectorAll('[data-insert-phrase]').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      const ph=allPhrases().find(p=>p.id===el.dataset.insertPhrase);
+      if(ph)insertPhrase(ph);
+    });
   });
 }
 
