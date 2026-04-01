@@ -253,62 +253,28 @@ const EPIC_TYPES={
   procedure_note:'Procedure Note',
   transfer_note:'Transfer/Handoff Note',
 };
-// ═══════════════════════════════════════════════════════
-//  DEFAULT REQUIRED DOCUMENTATION TEMPLATES
-// ═══════════════════════════════════════════════════════
-const DEFAULT_RD_TEMPLATES=[
-  // ── Assessment & Safety ─────────────────────────────
-  {id:'rdt001',label:'Admission / Initial Assessment',category:'assessment',freq:'Once'},
-  {id:'rdt002',label:'Head-to-Toe Shift Assessment',category:'assessment',freq:'Each shift'},
-  {id:'rdt003',label:'Pain Assessment',category:'pain',freq:'Q4h'},
-  {id:'rdt004',label:'Fall Risk Assessment (Morse / Johns Hopkins)',category:'fall_safety',freq:'Each shift'},
-  {id:'rdt005',label:'Braden Skin Risk Assessment',category:'assessment',freq:'Each shift'},
-  {id:'rdt006',label:'Neuro / RASS Assessment',category:'neuro',freq:'Q4h'},
-  // ── Lines & Tubes ────────────────────────────────────
-  {id:'rdt007',label:'Central Line Bundle Check',category:'lines_tubes',freq:'Each shift'},
-  {id:'rdt008',label:'Foley / CAUTI Bundle Check',category:'lines_tubes',freq:'Each shift'},
-  {id:'rdt009',label:'Arterial Line Site Assessment',category:'lines_tubes',freq:'Each shift'},
-  {id:'rdt010',label:'Chest Tube / Drain Documentation',category:'lines_tubes',freq:'Each shift'},
-  // ── Vitals & Monitoring ──────────────────────────────
-  {id:'rdt011',label:'Vital Signs Documentation',category:'cardiac',freq:'Per order'},
-  {id:'rdt012',label:'I&O Documentation',category:'gi_gu',freq:'Each shift'},
-  {id:'rdt013',label:'Telemetry / Rhythm Strip Documentation',category:'cardiac',freq:'Each shift'},
-  // ── Medications & Orders ─────────────────────────────
-  {id:'rdt014',label:'Medication Reconciliation',category:'medication',freq:'Each shift'},
-  {id:'rdt015',label:'Anticoagulation / Heparin Protocol Check',category:'medication',freq:'Per order'},
-  {id:'rdt016',label:'Insulin Protocol / Blood Glucose Log',category:'medication',freq:'Per order'},
-  // ── Plan of Care ─────────────────────────────────────
-  {id:'rdt017',label:'Care Plan Review / Update',category:'assessment',freq:'Each shift'},
-  {id:'rdt018',label:'Code Status Verification',category:'physician',freq:'Each shift'},
-  {id:'rdt019',label:'Goals of Care / Family Communication',category:'education',freq:'PRN'},
-  {id:'rdt020',label:'Patient / Family Education',category:'education',freq:'Each shift'},
-  // ── Discharge / Transfer ─────────────────────────────
-  {id:'rdt021',label:'Discharge / Transfer Readiness',category:'transfer',freq:'PRN'},
-  {id:'rdt022',label:'Required Documentation Complete (Sign-out)',category:'assessment',freq:'End of shift'},
-];
-
 const PRIOS={urgent:{color:'#f87171',label:'Urgent'},normal:{color:'#38bdf8',label:'Normal'},follow_up:{color:'#fbbf24',label:'Follow-up'}};
 
 // ═══════════════════════════════════════════════════════
 //  REQUIRED DOCUMENTATION TEMPLATES
 // ═══════════════════════════════════════════════════════
 const DEFAULT_RD_TEMPLATES=[
-  {id:'rdt01',label:'Head-to-Toe / Shift Assessment',required:true,category:'assessment'},
-  {id:'rdt02',label:'Pain Assessment & Reassessment',required:true,category:'pain'},
-  {id:'rdt03',label:'Fall Risk Score (Morse / JHFAM)',required:true,category:'fall_safety'},
-  {id:'rdt04',label:'Braden Skin Risk Score',required:true,category:'assessment'},
-  {id:'rdt05',label:'Vascular Access / Line Assessment',required:true,category:'lines_tubes'},
-  {id:'rdt06',label:'Safety Bundle Documentation',required:true,category:'fall_safety'},
-  {id:'rdt07',label:'Medication Administration / MAR Review',required:true,category:'medication'},
-  {id:'rdt08',label:'Intake & Output Documentation',required:true,category:'gi_gu'},
-  {id:'rdt09',label:'Restraint Assessment & Documentation',required:false,category:'fall_safety'},
-  {id:'rdt10',label:'Patient / Family Education',required:false,category:'education'},
-  {id:'rdt11',label:'Nutrition / Dietitian Referral',required:false,category:'assessment'},
-  {id:'rdt12',label:'Ventilator Bundle (if mechanically ventilated)',required:false,category:'resp'},
-  {id:'rdt13',label:'Care Plan Review & Update',required:false,category:'assessment'},
-  {id:'rdt14',label:'Goals of Care Discussion Documented',required:false,category:'physician'},
-  {id:'rdt15',label:'Provider Communication / Rounding Note',required:false,category:'physician'},
-  {id:'rdt16',label:'Discharge Planning / Case Management',required:false,category:'transfer'},
+  {id:'rdt01',label:'Head-to-Toe / Shift Assessment',required:true,category:'assessment',freq:'Each shift'},
+  {id:'rdt02',label:'Pain Assessment & Reassessment',required:true,category:'pain',freq:'Q4h'},
+  {id:'rdt03',label:'Fall Risk Score (Morse / JHFAM)',required:true,category:'fall_safety',freq:'Each shift'},
+  {id:'rdt04',label:'Braden Skin Risk Score',required:true,category:'assessment',freq:'Each shift'},
+  {id:'rdt05',label:'Vascular Access / Line Assessment',required:true,category:'lines_tubes',freq:'Each shift'},
+  {id:'rdt06',label:'Safety Bundle Documentation',required:true,category:'fall_safety',freq:'Each shift'},
+  {id:'rdt07',label:'Medication Administration / MAR Review',required:true,category:'medication',freq:'Each shift'},
+  {id:'rdt08',label:'Intake & Output Documentation',required:true,category:'gi_gu',freq:'Each shift'},
+  {id:'rdt09',label:'Restraint Assessment & Documentation',required:false,category:'fall_safety',freq:'PRN'},
+  {id:'rdt10',label:'Patient / Family Education',required:false,category:'education',freq:'Each shift'},
+  {id:'rdt11',label:'Nutrition / Dietitian Referral',required:false,category:'assessment',freq:'PRN'},
+  {id:'rdt12',label:'Ventilator Bundle (if mechanically ventilated)',required:false,category:'resp',freq:'Each shift'},
+  {id:'rdt13',label:'Care Plan Review & Update',required:false,category:'assessment',freq:'Each shift'},
+  {id:'rdt14',label:'Goals of Care Discussion Documented',required:false,category:'physician',freq:'PRN'},
+  {id:'rdt15',label:'Provider Communication / Rounding Note',required:false,category:'physician',freq:'Each shift'},
+  {id:'rdt16',label:'Discharge Planning / Case Management',required:false,category:'transfer',freq:'PRN'},
 ];
 
 // ═══════════════════════════════════════════════════════
